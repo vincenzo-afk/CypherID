@@ -1,0 +1,13 @@
+rootProject.name = 'cypherid'
+
+// Blockchain chaincodes
+include 'blockchain:chaincode:identity'
+include 'blockchain:chaincode:access-control'
+include 'blockchain:chaincode:asset-registry'
+
+// Backend services
+include 'backend:api-gateway'
+include 'backend:identity-service'
+include 'backend:access-service'
+include 'backend:asset-service'
+include 'backend:audit-service'
