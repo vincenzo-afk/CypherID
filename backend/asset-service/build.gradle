@@ -35,3 +35,7 @@ dependencies {
 springBoot {
     mainClass = 'com.cypherid.asset.service.AssetServiceApplication'
 }
+
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
+}

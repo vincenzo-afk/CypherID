@@ -1,0 +1,378 @@
+# CypherID Platform — Docker Compose (docs/infrastructure/01_DOCKER_ARCHITECTURE.md)
+#
+# Usage:
+#   cp .env.example .env          # adjust secrets
+#   docker compose build          # builds the Java services + AI service
+#   docker compose up -d          # starts infrastructure + services
+#
+# NOTE: The Fabric network (CA, orderer, peer) requires Phase 2 crypto material
+# (crypto-config.yaml / configtx.yaml outputs). Those containers are defined but
+# commented out until the material is generated. The Java services boot WITHOUT
+# Fabric and report FABRIC_UNAVAILABLE on blockchain calls until it is reachable.
+
+name: cypherid
+
+networks:
+  cypherid-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  ipfs-data:
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Infrastructure
+  # ─────────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: cypherid-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cypherid}
+      POSTGRES_USER: ${POSTGRES_USER:-cypherid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Creates the per-service databases (cypherid_access, cypherid_asset, cypherid_audit)
+      - ./infrastructure/docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cypherid} -d ${POSTGRES_DB:-cypherid}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cypherid-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: cypherid-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cypherid-net
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: cypherid-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD-SHELL", "zkServer.sh status || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - cypherid-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: cypherid-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - cypherid-net
+
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: cypherid-ipfs
+    command: ["daemon", "--migrate"]
+    ports:
+      - "4001:4001"   # libp2p
+      - "5001:5001"   # API
+      - "8085:8080"   # gateway (mapped to 8085 to avoid clashing with api-gateway :8080)
+    volumes:
+      - ipfs-data:/data/ipfs
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs id >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - cypherid-net
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Fabric network (Phase 2 — requires generated crypto material)
+  # Uncomment after running the Phase 2 scripts (infrastructure/scripts/).
+  # ─────────────────────────────────────────────────────────────────────────────
+  # fabric-ca:
+  #   image: hyperledger/fabric-ca:1.5
+  #   container_name: cypherid-fabric-ca
+  #   command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
+  #   ports: ["7054:7054"]
+  #   volumes: ["./infrastructure/fabric/crypto-config:/etc/hyperledger/fabric-ca"]
+  #   networks: [cypherid-net]
+  #
+  # fabric-orderer:
+  #   image: hyperledger/fabric-orderer:2.5
+  #   container_name: cypherid-fabric-orderer
+  #   environment:
+  #     FABRIC_LOGGING_SPEC: INFO
+  #     ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
+  #     ORDERER_GENERAL_LISTENPORT: 7050
+  #     ORDERER_GENERAL_LOCALMSPID: OrdererMSP
+  #     ORDERER_GENERAL_LOCALMSPDIR: /etc/hyperledger/fabric/msp
+  #     ORDERER_GENERAL_GENESISFILE: /etc/hyperledger/fabric/genesis.block
+  #     ORDERER_GENERAL_TLS_ENABLED: "false"
+  #   ports: ["7050:7050"]
+  #   volumes: ["./infrastructure/fabric/orderer:/etc/hyperledger/fabric"]
+  #   networks: [cypherid-net]
+  #
+  # fabric-peer:
+  #   image: hyperledger/fabric-peer:2.5
+  #   container_name: cypherid-fabric-peer
+  #   environment:
+  #     CORE_PEER_ID: peer0.belorg.cypherid.com
+  #     CORE_PEER_ADDRESS: peer0.belorg.cypherid.com:7051
+  #     CORE_PEER_LISTENADDRESS: 0.0.0.0:7051
+  #     CORE_PEER_LOCALMSPID: BELOrgMSP
+  #     CORE_PEER_MSPCONFIGPATH: /etc/hyperledger/fabric/msp
+  #     CORE_LEDGER_STATE_STATEDATABASE: CouchDB
+  #     CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS: couchdb:5984
+  #     CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME: cypherid
+  #     CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD: cypherid_couch
+  #     CORE_PEER_TLS_ENABLED: "false"
+  #   ports: ["7051:7051"]
+  #   volumes: ["./infrastructure/fabric/peer:/etc/hyperledger/fabric"]
+  #   depends_on:
+  #     couchdb: { condition: service_started }
+  #   networks: [cypherid-net]
+  #
+  # couchdb:
+  #   image: couchdb:3.3
+  #   container_name: cypherid-couchdb
+  #   environment:
+  #     COUCHDB_USER: cypherid
+  #     COUCHDB_PASSWORD: cypherid_couch
+  #   ports: ["5984:5984"]
+  #   networks: [cypherid-net]
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Backend services (built from the monorepo root)
+  # ─────────────────────────────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: backend/api-gateway/Dockerfile
+    container_name: cypherid-api-gateway
+    environment:
+      REDIS_HOST: redis
+      IDENTITY_SVC_HOST: identity-svc
+      ACCESS_SVC_HOST: access-svc
+      ASSET_SVC_HOST: asset-svc
+      AUDIT_SVC_HOST: audit-svc
+      JWT_SECRET: ${JWT_SECRET:-CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!}
+    ports:
+      - "8080:8080"
+    depends_on:
+      identity-svc:
+        condition: service_healthy
+      access-svc:
+        condition: service_healthy
+      asset-svc:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - cypherid-net
+
+  identity-svc:
+    build:
+      context: .
+      dockerfile: backend/identity-service/Dockerfile
+    container_name: cypherid-identity-svc
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-cypherid}
+      POSTGRES_USER: ${POSTGRES_USER:-cypherid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP: kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!}
+      FABRIC_CHANNEL: ${FABRIC_CHANNEL:-cypherid-channel}
+      FABRIC_ORG_MSP: ${FABRIC_ORG_MSP:-BELOrgMSP}
+      FABRIC_PEER_ENDPOINT: ${FABRIC_PEER_ENDPOINT:-peer0.belorg.cypherid.com:7051}
+      FABRIC_PEER_TLS_CERT: /config/fabric/tls/peer-ca.crt
+      FABRIC_ADMIN_KEY: /config/fabric/admin/keystore/admin_sk
+      FABRIC_ADMIN_CERT: /config/fabric/admin/signcerts/admin.pem
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - cypherid-net
+
+  access-svc:
+    build:
+      context: .
+      dockerfile: backend/access-service/Dockerfile
+    container_name: cypherid-access-svc
+    environment:
+      POSTGRES_HOST: postgres
+      ACCESS_DB: cypherid_access
+      POSTGRES_USER: ${POSTGRES_USER:-cypherid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP: kafka:9092
+      FABRIC_CHANNEL: ${FABRIC_CHANNEL:-cypherid-channel}
+      FABRIC_ORG_MSP: ${FABRIC_ORG_MSP:-BELOrgMSP}
+      FABRIC_PEER_ENDPOINT: ${FABRIC_PEER_ENDPOINT:-peer0.belorg.cypherid.com:7051}
+      FABRIC_PEER_TLS_CERT: /config/fabric/tls/peer-ca.crt
+      FABRIC_ADMIN_KEY: /config/fabric/admin/keystore/admin_sk
+      FABRIC_ADMIN_CERT: /config/fabric/admin/signcerts/admin.pem
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - cypherid-net
+
+  asset-svc:
+    build:
+      context: .
+      dockerfile: backend/asset-service/Dockerfile
+    container_name: cypherid-asset-svc
+    environment:
+      POSTGRES_HOST: postgres
+      ASSET_DB: cypherid_asset
+      POSTGRES_USER: ${POSTGRES_USER:-cypherid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP: kafka:9092
+      IPFS_API_URL: http://ipfs:5001
+      ACCESS_SERVICE_URL: http://access-svc:8082
+      ASSET_MASTER_KEY: ${ASSET_MASTER_KEY:-CypherID-Asset-Master-Key-2026!!}
+      FABRIC_CHANNEL: ${FABRIC_CHANNEL:-cypherid-channel}
+      FABRIC_ORG_MSP: ${FABRIC_ORG_MSP:-BELOrgMSP}
+      FABRIC_PEER_ENDPOINT: ${FABRIC_PEER_ENDPOINT:-peer0.belorg.cypherid.com:7051}
+      FABRIC_PEER_TLS_CERT: /config/fabric/tls/peer-ca.crt
+      FABRIC_ADMIN_KEY: /config/fabric/admin/keystore/admin_sk
+      FABRIC_ADMIN_CERT: /config/fabric/admin/signcerts/admin.pem
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
+      access-svc:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - cypherid-net
+
+  audit-svc:
+    build:
+      context: .
+      dockerfile: backend/audit-service/Dockerfile
+    container_name: cypherid-audit-svc
+    environment:
+      POSTGRES_HOST: postgres
+      AUDIT_DB: cypherid_audit
+      POSTGRES_USER: ${POSTGRES_USER:-cypherid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
+      KAFKA_BOOTSTRAP: kafka:9092
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - cypherid-net
+
+  ai-svc:
+    build:
+      context: ./backend/ai-service
+      dockerfile: Dockerfile
+    container_name: cypherid-ai-svc
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      ACCESS_LOGS_TOPIC: access-logs
+      JAVA_BACKEND_URL: http://asset-svc:8083
+      AI_ANOMALY_THRESHOLD: ${AI_ANOMALY_THRESHOLD:--0.1}
+      AI_CONTAMINATION: ${AI_CONTAMINATION:-0.05}
+      AI_MODEL_PATH: /app/model/isolation_forest.pkl
+    ports:
+      - "8090:8090"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      asset-svc:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks:
+      - cypherid-net

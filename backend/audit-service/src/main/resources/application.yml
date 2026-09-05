@@ -1,0 +1,45 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: audit-service
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:5432/${AUDIT_DB:cypherid_audit}
+    username: ${POSTGRES_USER:cypherid}
+    password: ${POSTGRES_PASSWORD:cypherid_secret}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: audit-service
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.cypherid: DEBUG

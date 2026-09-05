@@ -25,3 +25,7 @@ dependencyManagement {
 springBoot {
     mainClass = 'com.cypherid.gateway.ApiGatewayApplication'
 }
+
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
+}

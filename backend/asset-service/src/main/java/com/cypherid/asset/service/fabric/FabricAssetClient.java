@@ -21,19 +21,36 @@ public class FabricAssetClient {
 
     private static final Logger logger = LoggerFactory.getLogger(FabricAssetClient.class);
 
-    private final Gateway gateway;
-    private final Network network;
+    private Gateway gateway;
+    private Network network;
+    private String unavailableReason;
     private final String assetChaincode;
 
     @Autowired
-    public FabricAssetClient(FabricConnectionConfig config) throws Exception {
+    public FabricAssetClient(FabricConnectionConfig config) {
         this.assetChaincode = config.getAssetChaincode();
 
-        // Build Gateway connection using config
-        this.gateway = config.buildGateway();
-        this.network = gateway.getNetwork(config.getChannelName());
+        try {
+            // Build Gateway connection using config
+            this.gateway = config.buildGateway();
+            this.network = gateway.getNetwork(config.getChannelName());
+            logger.info("Fabric Gateway connected to channel: {}", config.getChannelName());
+        } catch (Exception e) {
+            // Do not fail startup when Fabric crypto material / network is absent.
+            // Transactions fail with FABRIC_UNAVAILABLE until the network is reachable.
+            this.gateway = null;
+            this.network = null;
+            this.unavailableReason = e.getMessage();
+            logger.warn("Fabric Gateway unavailable at startup ({}). " +
+                    "Transactions will fail until the network is reachable.", e.getMessage());
+        }
+    }
 
-        logger.info("Fabric Gateway connected to channel: {}", config.getChannelName());
+    private Network network() throws GatewayException {
+        if (network == null) {
+            throw new GatewayException("Fabric gateway unavailable: " + unavailableReason);
+        }
+        return network;
     }
 
     // =========================================================================
@@ -49,7 +66,7 @@ public class FabricAssetClient {
                             String fileName, String fileType, String fileSizeBytes,
                             String nonce, String timestamp)
             throws GatewayException, CommitException {
-        Contract contract = network.getContract(assetChaincode);
+        Contract contract = network().getContract(assetChaincode);
         byte[] result = contract.submitTransaction("AssetContract:mintAsset",
                 assetId, ownerDid, ipfsHash, classification, policyId,
                 fileName, fileType, fileSizeBytes, nonce, timestamp);
@@ -62,7 +79,7 @@ public class FabricAssetClient {
     public String transferAsset(String assetId, String fromDid, String toDid,
                                 String ownerSignature, String nonce, String timestamp)
             throws GatewayException, CommitException {
-        Contract contract = network.getContract(assetChaincode);
+        Contract contract = network().getContract(assetChaincode);
         byte[] result = contract.submitTransaction("AssetContract:transferAsset",
                 assetId, fromDid, toDid, ownerSignature, nonce, timestamp);
         return new String(result, StandardCharsets.UTF_8);
@@ -75,7 +92,7 @@ public class FabricAssetClient {
     public String burnAsset(String assetId, String ownerDid, String ownerSignature,
                             String nonce, String timestamp)
             throws GatewayException, CommitException {
-        Contract contract = network.getContract(assetChaincode);
+        Contract contract = network().getContract(assetChaincode);
         byte[] result = contract.submitTransaction("AssetContract:burnAsset",
                 assetId, ownerDid, ownerSignature, nonce, timestamp);
         return new String(result, StandardCharsets.UTF_8);
@@ -89,7 +106,7 @@ public class FabricAssetClient {
      * Evaluate queryAsset — reads asset metadata from a peer (no ordering).
      */
     public String queryAsset(String assetId) throws GatewayException {
-        Contract contract = network.getContract(assetChaincode);
+        Contract contract = network().getContract(assetChaincode);
         byte[] result = contract.evaluateTransaction("AssetContract:queryAsset", assetId);
         return new String(result, StandardCharsets.UTF_8);
     }
@@ -98,7 +115,7 @@ public class FabricAssetClient {
      * Evaluate queryOwnerAssets — JSON array of asset IDs owned by a DID.
      */
     public String queryOwnerAssets(String ownerDid) throws GatewayException {
-        Contract contract = network.getContract(assetChaincode);
+        Contract contract = network().getContract(assetChaincode);
         byte[] result = contract.evaluateTransaction("AssetContract:queryOwnerAssets", ownerDid);
         return new String(result, StandardCharsets.UTF_8);
     }
@@ -107,7 +124,7 @@ public class FabricAssetClient {
      * Evaluate getAssetHistory — full provenance chain for an asset.
      */
     public String getAssetHistory(String assetId) throws GatewayException {
-        Contract contract = network.getContract(assetChaincode);
+        Contract contract = network().getContract(assetChaincode);
         byte[] result = contract.evaluateTransaction("AssetContract:getAssetHistory", assetId);
         return new String(result, StandardCharsets.UTF_8);
     }

@@ -28,3 +28,7 @@ dependencies {
 springBoot {
     mainClass = 'com.cypherid.access.service.AccessServiceApplication'
 }
+
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
+}

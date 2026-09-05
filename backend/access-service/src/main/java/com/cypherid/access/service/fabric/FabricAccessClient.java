@@ -21,21 +21,38 @@ public class FabricAccessClient {
 
     private static final Logger logger = LoggerFactory.getLogger(FabricAccessClient.class);
 
-    private final Gateway gateway;
-    private final Network network;
+    private Gateway gateway;
+    private Network network;
+    private String unavailableReason;
     private final String accessChaincode;
     private final String identityChaincode;
 
     @Autowired
-    public FabricAccessClient(FabricConnectionConfig config) throws Exception {
+    public FabricAccessClient(FabricConnectionConfig config) {
         this.accessChaincode   = config.getAccessChaincode();
         this.identityChaincode = config.getIdentityChaincode();
 
-        // Build Gateway connection using config
-        this.gateway = config.buildGateway();
-        this.network = gateway.getNetwork(config.getChannelName());
+        try {
+            // Build Gateway connection using config
+            this.gateway = config.buildGateway();
+            this.network = gateway.getNetwork(config.getChannelName());
+            logger.info("Fabric Gateway connected to channel: {}", config.getChannelName());
+        } catch (Exception e) {
+            // Do not fail startup when Fabric crypto material / network is absent.
+            // Transactions fail with FABRIC_UNAVAILABLE until the network is reachable.
+            this.gateway = null;
+            this.network = null;
+            this.unavailableReason = e.getMessage();
+            logger.warn("Fabric Gateway unavailable at startup ({}). " +
+                    "Transactions will fail until the network is reachable.", e.getMessage());
+        }
+    }
 
-        logger.info("Fabric Gateway connected to channel: {}", config.getChannelName());
+    private Network network() throws GatewayException {
+        if (network == null) {
+            throw new GatewayException("Fabric gateway unavailable: " + unavailableReason);
+        }
+        return network;
     }
 
     // =========================================================================
@@ -49,7 +66,7 @@ public class FabricAccessClient {
                                String abacAttributesJson, String action, String adminDid,
                                String nonce, String timestamp)
             throws GatewayException, CommitException {
-        Contract contract = network.getContract(accessChaincode);
+        Contract contract = network().getContract(accessChaincode);
         byte[] result = contract.submitTransaction("AccessControlContract:createPolicy",
                 policyId, resourceId, requiredRole, abacAttributesJson, action, adminDid, nonce, timestamp);
         return new String(result, StandardCharsets.UTF_8);
@@ -59,7 +76,7 @@ public class FabricAccessClient {
      * Evaluate getPolicy — reads a policy by policyId (no ordering).
      */
     public String getPolicy(String policyId) throws GatewayException {
-        Contract contract = network.getContract(accessChaincode);
+        Contract contract = network().getContract(accessChaincode);
         byte[] result = contract.evaluateTransaction("AccessControlContract:getPolicy", policyId);
         return new String(result, StandardCharsets.UTF_8);
     }
@@ -76,7 +93,7 @@ public class FabricAccessClient {
                                  String contextAttributesJson, String vcVerificationResult,
                                  String timestamp)
             throws GatewayException {
-        Contract contract = network.getContract(accessChaincode);
+        Contract contract = network().getContract(accessChaincode);
         byte[] result = contract.evaluateTransaction("AccessControlContract:evaluateAccess",
                 did, resourceId, action, contextAttributesJson, vcVerificationResult, timestamp);
         return new String(result, StandardCharsets.UTF_8);
@@ -89,7 +106,7 @@ public class FabricAccessClient {
                             String reason, String policyId, String contextAttributesJson,
                             String nonce, String timestamp)
             throws GatewayException, CommitException {
-        Contract contract = network.getContract(accessChaincode);
+        Contract contract = network().getContract(accessChaincode);
         byte[] result = contract.submitTransaction("AccessControlContract:logAccess",
                 did, resourceId, action, decision, reason, policyId, contextAttributesJson, nonce, timestamp);
         return new String(result, StandardCharsets.UTF_8);
@@ -99,7 +116,7 @@ public class FabricAccessClient {
      * Evaluate getAccessLog — reads an access log entry by logId.
      */
     public String getAccessLog(String logId) throws GatewayException {
-        Contract contract = network.getContract(accessChaincode);
+        Contract contract = network().getContract(accessChaincode);
         byte[] result = contract.evaluateTransaction("AccessControlContract:getAccessLog", logId);
         return new String(result, StandardCharsets.UTF_8);
     }
@@ -114,7 +131,7 @@ public class FabricAccessClient {
     public String delegateAccess(String fromDid, String toDid, String resourceId, String action,
                                  String expiresAt, String nonce, String timestamp)
             throws GatewayException, CommitException {
-        Contract contract = network.getContract(accessChaincode);
+        Contract contract = network().getContract(accessChaincode);
         byte[] result = contract.submitTransaction("AccessControlContract:delegateAccess",
                 fromDid, toDid, resourceId, action, expiresAt, nonce, timestamp);
         return new String(result, StandardCharsets.UTF_8);
@@ -126,7 +143,7 @@ public class FabricAccessClient {
     public String revokeDelegate(String fromDid, String toDid, String resourceId,
                                  String nonce, String timestamp)
             throws GatewayException, CommitException {
-        Contract contract = network.getContract(accessChaincode);
+        Contract contract = network().getContract(accessChaincode);
         byte[] result = contract.submitTransaction("AccessControlContract:revokeDelegate",
                 fromDid, toDid, resourceId, nonce, timestamp);
         return new String(result, StandardCharsets.UTF_8);
@@ -142,7 +159,7 @@ public class FabricAccessClient {
     public String createMultiSigRequest(String requestId, String resourceId, String requesterDid,
                                         String requiredApproversJson, String nonce, String timestamp)
             throws GatewayException, CommitException {
-        Contract contract = network.getContract(accessChaincode);
+        Contract contract = network().getContract(accessChaincode);
         byte[] result = contract.submitTransaction("AccessControlContract:createMultiSigRequest",
                 requestId, resourceId, requesterDid, requiredApproversJson, nonce, timestamp);
         return new String(result, StandardCharsets.UTF_8);
@@ -154,7 +171,7 @@ public class FabricAccessClient {
     public String approveMultiSig(String requestId, String approverDid, String signature,
                                   String nonce, String timestamp)
             throws GatewayException, CommitException {
-        Contract contract = network.getContract(accessChaincode);
+        Contract contract = network().getContract(accessChaincode);
         byte[] result = contract.submitTransaction("AccessControlContract:approveMultiSig",
                 requestId, approverDid, signature, nonce, timestamp);
         return new String(result, StandardCharsets.UTF_8);
