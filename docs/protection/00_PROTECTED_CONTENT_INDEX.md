@@ -1,0 +1,17 @@
+# Protected Content Index
+- 01_PROTECTION_SUBSYSTEM.md
+- 02_PROTECTION_OBJECTIVES.md
+- 03_PROTECTION_THREAT_MODEL.md
+- 04_PROTECTION_SECURITY_MODEL.md
+- 05_PROTECTION_POLICY_ENGINE.md
+- 06_PROTECTED_SESSION_ARCHITECTURE.md
+- 07_PROTECTED_SESSION_LIFECYCLE.md
+- 08_PROTECTED_CONTENT_SERVICE.md
+- rendering/ — Camera-resistant rendering engine
+- watermark/ — Watermarking system
+- capture/ — Capture monitoring
+- documents/ — Protected document mode
+- exams/ — Protected exam mode
+- video/ — Protected video mode
+- states/ — Protection state machine
+- profiles/ — Protection profiles (LOW/MEDIUM/HIGH/EXTREME)

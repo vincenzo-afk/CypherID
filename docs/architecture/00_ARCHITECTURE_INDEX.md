@@ -1,0 +1,14 @@
+# Architecture Index
+- 01_SYSTEM_ARCHITECTURE.md — High-level system overview and hackathon roadmap
+- 02_LOGICAL_ARCHITECTURE.md — Logical layers and component groupings
+- 03_PHYSICAL_ARCHITECTURE.md — Physical deployment topology
+- 04_COMPONENT_ARCHITECTURE.md — Component-level detail per service
+- 05_DEPLOYMENT_ARCHITECTURE.md — Docker Compose deployment
+- 06_NETWORK_ARCHITECTURE.md — Network topology and ports
+- 07_DATA_FLOW_ARCHITECTURE.md — End-to-end data flows
+- 08_TRUST_BOUNDARIES.md — Trust zones and boundaries
+- 09_SECURITY_BOUNDARIES.md — Security perimeters
+- 10_EXTERNAL_DEPENDENCIES.md — Third-party dependencies
+- 11_SERVICE_COMMUNICATION.md — Inter-service communication patterns
+- 12_FAILURE_DOMAINS.md — Failure isolation design
+- 13_SCALABILITY_ARCHITECTURE.md — Scaling approach
