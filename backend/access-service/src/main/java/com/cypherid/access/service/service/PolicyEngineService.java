@@ -78,10 +78,10 @@ public class PolicyEngineService {
 
             // 2. Immutable audit log on-chain (granted AND denied are recorded)
             String nonce = FabricAccessClient.generateNonce();
-            String logJson = fabricClient.logAccess(
+            FabricAccessClient.TxOutcome logOutcome = fabricClient.logAccess(
                     did, request.resourceId(), request.action(), decisionValue,
                     reason, policyId, contextJson, nonce, timestamp);
-            String txHash = extractLogId(logJson);
+            String txHash = logOutcome.txId();  // real on-chain transaction ID
 
             // 3. Feed the AI anomaly pipeline (best-effort)
             accessLogProducer.publishAccessLog(did, request.resourceId(), request.action(),
@@ -129,8 +129,9 @@ public class PolicyEngineService {
         String nonce = FabricAccessClient.generateNonce();
         String timestamp = Instant.now().toString();
 
+        FabricAccessClient.TxOutcome outcome;
         try {
-            fabricClient.createPolicy(policyId, request.resourceId(), request.requiredRole(),
+            outcome = fabricClient.createPolicy(policyId, request.resourceId(), request.requiredRole(),
                     abacJson, request.action(), adminDid, nonce, timestamp);
         } catch (GatewayException e) {
             throw new FabricUnavailableException("Blockchain network unavailable", e);
@@ -149,9 +150,9 @@ public class PolicyEngineService {
         entity.setCreatedBy(adminDid);
         policyRepository.save(entity);
 
-        String txHash = "fabric:tx:" + UUID.randomUUID().toString().replace("-", "");
-        logger.info("Policy created: {} for resource: {} by admin: {}",
-                policyId, request.resourceId(), adminDid);
+        String txHash = outcome.txId();  // real on-chain transaction ID
+        logger.info("Policy created: {} for resource: {} by admin: {} (tx: {})",
+                policyId, request.resourceId(), adminDid, txHash);
 
         return new CreatePolicyResponse(policyId, txHash);
     }
@@ -211,20 +212,6 @@ public class PolicyEngineService {
      */
     private String buildVcVerification(String roles) {
         return "VALID" + (roles == null || roles.isBlank() ? "" : "," + roles);
-    }
-
-    /**
-     * The chaincode returns the AccessLog whose logId equals the transaction ID;
-     * that ID is used as the transaction hash returned to callers.
-     */
-    private String extractLogId(String logJson) {
-        try {
-            Map<String, String> log = gson.fromJson(logJson, STRING_MAP_TYPE);
-            String logId = log.get("logId");
-            return logId != null ? logId : "fabric:tx:" + UUID.randomUUID().toString().replace("-", "");
-        } catch (Exception e) {
-            return "fabric:tx:" + UUID.randomUUID().toString().replace("-", "");
-        }
     }
 
     private PolicyResponse toPolicyResponse(AccessPolicyEntity e) {

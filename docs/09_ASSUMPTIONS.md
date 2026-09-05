@@ -4,7 +4,7 @@
 2. The demo environment has sufficient RAM (minimum 16 GB recommended for full Fabric network).
 3. All organizations (BEL, DRDO, MoD) are represented as separate Fabric organizations for demo purposes.
 4. Users have modern browsers (Chrome 90+, Firefox 88+, Edge 90+) for protected content features.
-5. The AI anomaly detection model is pre-trained on synthetic data for demo; retraining requires real production data.
+5. The AI anomaly detection model is trained on real access-log data via `backend/ai-service/train.py`; it is never trained on synthetic data.
 6. IPFS node is local for demo; production would use a private IPFS cluster or alternative distributed storage.
 7. Fabric CA provides the root of trust; external PKI integration is not assumed.
 8. KYC verification in the demo is simulated (form-based); real KYC integration is out of scope.

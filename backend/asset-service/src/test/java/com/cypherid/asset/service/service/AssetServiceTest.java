@@ -65,7 +65,8 @@ class AssetServiceTest {
         when(ipfsService.upload(any(byte[].class))).thenReturn("QmTestCID");
         when(fabricClient.mintAsset(anyString(), eq(OWNER), eq("QmTestCID"), eq("SECRET"), anyString(),
                 anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("{\"assetId\":\"ASSET-x\",\"ownerDid\":\"" + OWNER + "\"}");
+                .thenReturn(new FabricAssetClient.TxOutcome(
+                        ("{\"assetId\":\"ASSET-x\",\"ownerDid\":\"" + OWNER + "\"}").getBytes(), "tx-mint"));
 
         AssetUploadResponse response = service.uploadAsset(OWNER, file, "SECRET", "POLICY-1");
 
@@ -135,7 +136,7 @@ class AssetServiceTest {
     void transfer_ownerCanTransfer() throws Exception {
         when(fabricClient.queryAsset("ASSET-1")).thenReturn(ownerAssetJson("did:cypherid:user1"));
         when(fabricClient.transferAsset(eq("ASSET-1"), eq(OWNER), eq("did:cypherid:user2"), eq("sig"), anyString(), anyString()))
-                .thenReturn("{\"assetId\":\"ASSET-1\"}");
+                .thenReturn(new FabricAssetClient.TxOutcome("{\"assetId\":\"ASSET-1\"}".getBytes(), "tx-transfer"));
 
         TransferResponse response = service.transfer("ASSET-1", OWNER,
                 new TransferAssetRequest("did:cypherid:user2", "sig"));
@@ -160,7 +161,8 @@ class AssetServiceTest {
     void burn_ownerBurnsAsset() throws Exception {
         when(fabricClient.queryAsset("ASSET-1")).thenReturn(ownerAssetJson("did:cypherid:user1"));
         when(fabricClient.burnAsset(eq("ASSET-1"), eq(OWNER), eq("sig"), anyString(), anyString()))
-                .thenReturn("{\"assetId\":\"ASSET-1\",\"status\":\"BURNED\"}");
+                .thenReturn(new FabricAssetClient.TxOutcome(
+                        "{\"assetId\":\"ASSET-1\",\"status\":\"BURNED\"}".getBytes(), "tx-burn"));
 
         BurnResponse response = service.burn("ASSET-1", OWNER, new BurnAssetRequest("sig"));
 

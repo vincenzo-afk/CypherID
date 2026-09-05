@@ -95,7 +95,8 @@ public class AssetService {
             String nonce = FabricAssetClient.generateNonce();
             String timestamp = Instant.now().toString();
 
-            fabricClient.mintAsset(assetId, ownerDid, cid, classification,
+            FabricAssetClient.TxOutcome mintOutcome = fabricClient.mintAsset(
+                    assetId, ownerDid, cid, classification,
                     policyId == null ? "" : policyId,
                     file.getOriginalFilename() != null ? file.getOriginalFilename() : "asset.bin",
                     file.getContentType() != null ? file.getContentType() : "application/octet-stream",
@@ -114,9 +115,9 @@ public class AssetService {
             eventProducer.publishAssetEvent("ASSET_MINTED", assetId, ownerDid,
                     classification, cid, timestamp);
 
-            String txHash = "fabric:tx:" + UUID.randomUUID().toString().replace("-", "");
-            logger.info("Asset minted: {} owner: {} cid: {} class: {}",
-                    assetId, ownerDid, cid, classification);
+            String txHash = mintOutcome.txId();  // real on-chain transaction ID
+            logger.info("Asset minted: {} owner: {} cid: {} class: {} (tx: {})",
+                    assetId, ownerDid, cid, classification, txHash);
 
             return new AssetUploadResponse(assetId, cid, txHash, ownerDid);
 
@@ -189,8 +190,9 @@ public class AssetService {
         String nonce = FabricAssetClient.generateNonce();
         String timestamp = Instant.now().toString();
 
+        FabricAssetClient.TxOutcome outcome;
         try {
-            fabricClient.transferAsset(assetId, fromDid, request.toDID(),
+            outcome = fabricClient.transferAsset(assetId, fromDid, request.toDID(),
                     request.ownerSignature(), nonce, timestamp);
         } catch (GatewayException e) {
             throw new FabricUnavailableException("Blockchain network unavailable", e);
@@ -201,8 +203,8 @@ public class AssetService {
         eventProducer.publishAssetEvent("ASSET_TRANSFERRED", assetId, request.toDID(),
                 null, null, timestamp);
 
-        String txHash = "fabric:tx:" + UUID.randomUUID().toString().replace("-", "");
-        logger.info("Asset {} transferred from {} to {}", assetId, fromDid, request.toDID());
+        String txHash = outcome.txId();  // real on-chain transaction ID
+        logger.info("Asset {} transferred from {} to {} (tx: {})", assetId, fromDid, request.toDID(), txHash);
 
         return new TransferResponse(txHash, request.toDID());
     }
@@ -228,8 +230,9 @@ public class AssetService {
         String nonce = FabricAssetClient.generateNonce();
         String timestamp = Instant.now().toString();
 
+        FabricAssetClient.TxOutcome outcome;
         try {
-            fabricClient.burnAsset(assetId, ownerDid, request.ownerSignature(), nonce, timestamp);
+            outcome = fabricClient.burnAsset(assetId, ownerDid, request.ownerSignature(), nonce, timestamp);
         } catch (GatewayException e) {
             throw new FabricUnavailableException("Blockchain network unavailable", e);
         } catch (Exception e) {
@@ -245,8 +248,8 @@ public class AssetService {
         eventProducer.publishAssetEvent("ASSET_BURNED", assetId, ownerDid,
                 asset.classification(), asset.ipfsHash(), timestamp);
 
-        String txHash = "fabric:tx:" + UUID.randomUUID().toString().replace("-", "");
-        logger.info("Asset burned: {} by owner: {}", assetId, ownerDid);
+        String txHash = outcome.txId();  // real on-chain transaction ID
+        logger.info("Asset burned: {} by owner: {} (tx: {})", assetId, ownerDid, txHash);
 
         return new BurnResponse(txHash, "BURNED");
     }

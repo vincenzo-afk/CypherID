@@ -91,7 +91,9 @@ public class MultiSigService {
 
         String resultJson;
         try {
-            resultJson = fabricClient.approveMultiSig(requestId, approverDid, signature, nonce, timestamp);
+            FabricAccessClient.TxOutcome outcome = fabricClient.approveMultiSig(
+                    requestId, approverDid, signature, nonce, timestamp);
+            resultJson = outcome.payloadUtf8();
         } catch (GatewayException e) {
             throw new FabricUnavailableException("Blockchain network unavailable", e);
         } catch (Exception e) {

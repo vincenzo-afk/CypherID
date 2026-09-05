@@ -10,9 +10,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code
 COPY app/ ./app/
+COPY train.py ./
 COPY model/ ./model/
 
-# Model is trained on synthetic data at startup if model/isolation_forest.pkl is absent
+# The model is NOT generated here: mount/COPY a model trained on real access-log
+# data (see model/README.md). The service refuses to start without one.
 EXPOSE 8090
 
 ENV PYTHONUNBUFFERED=1

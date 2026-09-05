@@ -31,5 +31,7 @@ Kafka consumer runs as background thread within the FastAPI process.
 
 ## Model Loading
 Model loaded from disk at startup: `model/isolation_forest.pkl`
-Model is pre-trained on synthetic access log data for demo.
-Real deployment requires training on production access patterns.
+The model is trained OFFLINE on real access log data via `backend/ai-service/train.py`
+(Kafka replay of the `access-logs` topic or a JSONL export). The service never
+generates training data — it refuses to start without a trained model.
+Periodic retraining on recent production access patterns is required.

@@ -13,7 +13,8 @@ import java.util.UUID;
  * FabricAssetClient — wrapper around Hyperledger Fabric Gateway Java SDK
  * for the AssetRegistryChaincode (AssetContract).
  * <p>
- * SUBMIT transactions go through the orderer (state mutations).
+ * SUBMIT transactions go through the orderer (state mutations) and return the
+ * REAL on-chain transaction ID from the commit status.
  * EVALUATE transactions query a peer directly (reads).
  */
 @Component
@@ -46,6 +47,30 @@ public class FabricAssetClient {
         }
     }
 
+    /**
+     * Submits a transaction and returns its real payload + on-chain transaction ID.
+     * Blocks until the transaction is committed to the ledger.
+     */
+    private TxOutcome submit(Contract contract, String transactionName, String... args)
+            throws GatewayException, CommitException {
+        Commit commit = contract.newProposal(transactionName)
+                .addArguments(args)
+                .build()
+                .endorse()
+                .submitAsync();
+        byte[] payload = commit.getResult();
+        String txId = commit.getTransactionId();
+        commit.getStatus(); // await commit completion; throws on failure
+        return new TxOutcome(payload, txId);
+    }
+
+    /** Result of a SUBMIT transaction: chaincode response payload + real tx ID. */
+    public record TxOutcome(byte[] payload, String txId) {
+        public String payloadUtf8() {
+            return new String(payload, StandardCharsets.UTF_8);
+        }
+    }
+
     private Network network() throws GatewayException {
         if (network == null) {
             throw new GatewayException("Fabric gateway unavailable: " + unavailableReason);
@@ -61,41 +86,38 @@ public class FabricAssetClient {
      * Submit mintAsset — registers the asset NFT on-chain.
      * The ipfsHash is the CID of the AES-256-GCM encrypted blob.
      */
-    public String mintAsset(String assetId, String ownerDid, String ipfsHash,
-                            String classification, String policyId,
-                            String fileName, String fileType, String fileSizeBytes,
-                            String nonce, String timestamp)
+    public TxOutcome mintAsset(String assetId, String ownerDid, String ipfsHash,
+                               String classification, String policyId,
+                               String fileName, String fileType, String fileSizeBytes,
+                               String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(assetChaincode);
-        byte[] result = contract.submitTransaction("AssetContract:mintAsset",
+        return submit(contract, "AssetContract:mintAsset",
                 assetId, ownerDid, ipfsHash, classification, policyId,
                 fileName, fileType, fileSizeBytes, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
      * Submit transferAsset — transfers ownership to another DID.
      */
-    public String transferAsset(String assetId, String fromDid, String toDid,
-                                String ownerSignature, String nonce, String timestamp)
+    public TxOutcome transferAsset(String assetId, String fromDid, String toDid,
+                                   String ownerSignature, String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(assetChaincode);
-        byte[] result = contract.submitTransaction("AssetContract:transferAsset",
+        return submit(contract, "AssetContract:transferAsset",
                 assetId, fromDid, toDid, ownerSignature, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
      * Submit burnAsset — burns (destroys) the asset on-chain.
      * Burning is recorded on-ledger as proof-of-deletion-intent.
      */
-    public String burnAsset(String assetId, String ownerDid, String ownerSignature,
-                            String nonce, String timestamp)
+    public TxOutcome burnAsset(String assetId, String ownerDid, String ownerSignature,
+                               String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(assetChaincode);
-        byte[] result = contract.submitTransaction("AssetContract:burnAsset",
+        return submit(contract, "AssetContract:burnAsset",
                 assetId, ownerDid, ownerSignature, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     // =========================================================================

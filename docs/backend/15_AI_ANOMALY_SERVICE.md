@@ -28,7 +28,11 @@ backend/ai-anomaly-service/
 └── requirements.txt
 ```
 
-## Model Training (Demo)
-Pre-trained on synthetic access log data.
-Training script: `train_model.py` (not in production path).
-Real deployment: retrain on 30 days of production access logs.
+## Model Training
+Trained OFFLINE on REAL access log data (never synthetic).
+Training script: `backend/ai-service/train.py` — consumes the `access-logs` Kafka
+topic (or a JSONL export of real events), builds the feature matrix with the same
+`FeatureExtractor` used at inference, and persists `model/isolation_forest.pkl`.
+
+The service refuses to start without a trained model (no fabricated data).
+Retrain periodically on recent production access logs to counter model drift.

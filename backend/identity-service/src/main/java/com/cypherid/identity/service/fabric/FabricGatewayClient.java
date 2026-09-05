@@ -15,11 +15,8 @@ import java.util.UUID;
  * FabricGatewayClient — wrapper around Hyperledger Fabric Gateway Java SDK.
  * <p>
  * Routes transactions to the correct chaincode (identity, accesscontrol, assetregistry).
- * Uses virtual threads (Project Loom) for non-blocking Fabric calls.
- *
- * Key design:
- * - SUBMIT transactions go through orderer (for state mutations)
- * - EVALUATE transactions query a peer directly (for reads)
+ * SUBMIT transactions return the REAL on-chain transaction ID from the commit status;
+ * EVALUATE transactions query a peer directly (for reads).
  */
 @Component
 public class FabricGatewayClient {
@@ -46,14 +43,37 @@ public class FabricGatewayClient {
             this.network = gateway.getNetwork(config.getChannelName());
             logger.info("Fabric Gateway connected to channel: {}", config.getChannelName());
         } catch (Exception e) {
-            // Do not fail startup when Fabric crypto material / network is absent
-            // (e.g., dev stack without Phase 2 material). Transactions fail with
-            // FABRIC_UNAVAILABLE until the network is reachable.
+            // Do not fail startup when Fabric crypto material / network is absent.
+            // Transactions fail with FABRIC_UNAVAILABLE until the network is reachable.
             this.gateway = null;
             this.network = null;
             this.unavailableReason = e.getMessage();
             logger.warn("Fabric Gateway unavailable at startup ({}). " +
                     "Transactions will fail until the network is reachable.", e.getMessage());
+        }
+    }
+
+    /**
+     * Submits a transaction and returns its real payload + on-chain transaction ID.
+     * Blocks until the transaction is committed to the ledger.
+     */
+    private TxOutcome submit(Contract contract, String transactionName, String... args)
+            throws GatewayException, CommitException {
+        Commit commit = contract.newProposal(transactionName)
+                .addArguments(args)
+                .build()
+                .endorse()
+                .submitAsync();
+        byte[] payload = commit.getResult();
+        String txId = commit.getTransactionId();
+        commit.getStatus(); // await commit completion; throws on failure
+        return new TxOutcome(payload, txId);
+    }
+
+    /** Result of a SUBMIT transaction: chaincode response payload + real tx ID. */
+    public record TxOutcome(byte[] payload, String txId) {
+        public String payloadUtf8() {
+            return new String(payload, StandardCharsets.UTF_8);
         }
     }
 
@@ -70,14 +90,12 @@ public class FabricGatewayClient {
 
     /**
      * Submit createDID transaction to Fabric — creates DID on-chain.
-     * @return DIDDocument JSON string from chaincode
+     * Returns the DID document JSON payload + real transaction ID.
      */
-    public String createDID(String did, String publicKey, String metadata, String nonce, String timestamp)
+    public TxOutcome createDID(String did, String publicKey, String metadata, String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(identityChaincode);
-        byte[] result = contract.submitTransaction("IdentityContract:createDID",
-                did, publicKey, metadata, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
+        return submit(contract, "IdentityContract:createDID", did, publicKey, metadata, nonce, timestamp);
     }
 
     /**
@@ -92,46 +110,39 @@ public class FabricGatewayClient {
     /**
      * Submit suspendDID transaction.
      */
-    public String suspendDID(String did, String adminDid, String reason, String nonce, String timestamp)
+    public TxOutcome suspendDID(String did, String adminDid, String reason, String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(identityChaincode);
-        byte[] result = contract.submitTransaction("IdentityContract:suspendDID",
-                did, adminDid, reason, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
+        return submit(contract, "IdentityContract:suspendDID", did, adminDid, reason, nonce, timestamp);
     }
 
     /**
      * Submit revokeDID transaction — irreversible.
      */
-    public String revokeDID(String did, String adminDid, String reason, String nonce, String timestamp)
+    public TxOutcome revokeDID(String did, String adminDid, String reason, String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(identityChaincode);
-        byte[] result = contract.submitTransaction("IdentityContract:revokeDID",
-                did, adminDid, reason, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
+        return submit(contract, "IdentityContract:revokeDID", did, adminDid, reason, nonce, timestamp);
     }
 
     /**
      * Submit issueVC transaction.
      */
-    public String issueVC(String did, String vcId, String vcJson, String issuerDid,
-                          String issuerSignature, String nonce, String timestamp)
+    public TxOutcome issueVC(String did, String vcId, String vcJson, String issuerDid,
+                             String issuerSignature, String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(identityChaincode);
-        byte[] result = contract.submitTransaction("IdentityContract:issueVC",
+        return submit(contract, "IdentityContract:issueVC",
                 did, vcId, vcJson, issuerDid, issuerSignature, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
      * Submit revokeVC transaction.
      */
-    public String revokeVC(String did, String vcId, String issuerDid, String nonce, String timestamp)
+    public TxOutcome revokeVC(String did, String vcId, String issuerDid, String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(identityChaincode);
-        byte[] result = contract.submitTransaction("IdentityContract:revokeVC",
-                did, vcId, issuerDid, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
+        return submit(contract, "IdentityContract:revokeVC", did, vcId, issuerDid, nonce, timestamp);
     }
 
     /**
@@ -150,14 +161,13 @@ public class FabricGatewayClient {
     /**
      * Submit createPolicy transaction.
      */
-    public String createPolicy(String policyId, String resourceId, String requiredRole,
-                               String abacJson, String action, String adminDid,
-                               String nonce, String timestamp)
+    public TxOutcome createPolicy(String policyId, String resourceId, String requiredRole,
+                                  String abacJson, String action, String adminDid,
+                                  String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(accessChaincode);
-        byte[] result = contract.submitTransaction("AccessControlContract:createPolicy",
+        return submit(contract, "AccessControlContract:createPolicy",
                 policyId, resourceId, requiredRole, abacJson, action, adminDid, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
@@ -175,14 +185,13 @@ public class FabricGatewayClient {
     /**
      * Submit logAccess — writes immutable access log to ledger.
      */
-    public String logAccess(String did, String resourceId, String action, String decision,
-                            String reason, String policyId, String contextJson,
-                            String nonce, String timestamp)
+    public TxOutcome logAccess(String did, String resourceId, String action, String decision,
+                               String reason, String policyId, String contextJson,
+                               String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(accessChaincode);
-        byte[] result = contract.submitTransaction("AccessControlContract:logAccess",
+        return submit(contract, "AccessControlContract:logAccess",
                 did, resourceId, action, decision, reason, policyId, contextJson, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     // =========================================================================
@@ -192,40 +201,37 @@ public class FabricGatewayClient {
     /**
      * Submit mintAsset transaction.
      */
-    public String mintAsset(String assetId, String ownerDid, String ipfsHash,
-                            String classification, String policyId,
-                            String fileName, String fileType, String fileSize,
-                            String nonce, String timestamp)
+    public TxOutcome mintAsset(String assetId, String ownerDid, String ipfsHash,
+                               String classification, String policyId,
+                               String fileName, String fileType, String fileSize,
+                               String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(assetChaincode);
-        byte[] result = contract.submitTransaction("AssetContract:mintAsset",
+        return submit(contract, "AssetContract:mintAsset",
                 assetId, ownerDid, ipfsHash, classification, policyId,
                 fileName, fileType, fileSize, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
      * Submit transferAsset transaction.
      */
-    public String transferAsset(String assetId, String fromDid, String toDid,
-                                String ownerSignature, String nonce, String timestamp)
+    public TxOutcome transferAsset(String assetId, String fromDid, String toDid,
+                                   String ownerSignature, String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(assetChaincode);
-        byte[] result = contract.submitTransaction("AssetContract:transferAsset",
+        return submit(contract, "AssetContract:transferAsset",
                 assetId, fromDid, toDid, ownerSignature, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
      * Submit burnAsset transaction.
      */
-    public String burnAsset(String assetId, String ownerDid, String ownerSignature,
-                            String nonce, String timestamp)
+    public TxOutcome burnAsset(String assetId, String ownerDid, String ownerSignature,
+                               String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(assetChaincode);
-        byte[] result = contract.submitTransaction("AssetContract:burnAsset",
+        return submit(contract, "AssetContract:burnAsset",
                 assetId, ownerDid, ownerSignature, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**

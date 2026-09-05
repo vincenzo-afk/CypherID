@@ -2,9 +2,9 @@
 
 ## Model Limitations
 1. Isolation Forest is unsupervised — no labeled attack data used in training
-2. Trained on synthetic data for demo; may not generalize to real patterns
+2. Model quality depends entirely on the real access-log data it was trained on (see `docs/ai/01_AI_ARCHITECTURE.md`); poor or insufficient training data degrades detection
 3. Novel attack patterns not represented in training data may not be detected
-4. Model drift: access patterns change over time; periodic retraining required
+4. Model drift: access patterns change over time; periodic retraining on fresh real data required
 
 ## Detection Limitations
 1. Cannot detect camera capture (no observable signal)

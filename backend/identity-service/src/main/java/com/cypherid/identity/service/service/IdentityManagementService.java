@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.KeyPair;
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * IdentityManagementService — orchestrates DID lifecycle operations.
@@ -86,12 +85,10 @@ public class IdentityManagementService {
             String nonce = FabricGatewayClient.generateNonce();
             String timestamp = Instant.now().toString();
 
-            String didDocumentJson = fabricClient.createDID(
+            FabricGatewayClient.TxOutcome outcome = fabricClient.createDID(
                     did, encodedPublicKey, metadata, nonce, timestamp);
-
-            // Extract txHash from Fabric response context
-            // In real Fabric SDK, txId is available from the transaction proposal response
-            String txHash = "fabric:tx:" + UUID.randomUUID().toString().replace("-", "");
+            String didDocumentJson = outcome.payloadUtf8();
+            String txHash = outcome.txId();  // real on-chain transaction ID
 
             // 5. Persist to PostgreSQL
             User user = new User();
@@ -138,15 +135,14 @@ public class IdentityManagementService {
             String nonce     = FabricGatewayClient.generateNonce();
             String timestamp = Instant.now().toString();
 
-            fabricClient.suspendDID(did, adminDid, reason, nonce, timestamp);
+            FabricGatewayClient.TxOutcome outcome = fabricClient.suspendDID(did, adminDid, reason, nonce, timestamp);
+            String txHash = outcome.txId();  // real on-chain transaction ID
 
             // Update local status
             userRepository.findByDid(did).ifPresent(user -> {
                 user.setStatus("SUSPENDED");
                 userRepository.save(user);
             });
-
-            String txHash = "fabric:tx:" + UUID.randomUUID().toString().replace("-", "");
             logger.info("DID suspended: {} by admin: {}", did, adminDid);
             return new TxHashResponse(txHash, "SUSPENDED");
 
@@ -163,15 +159,14 @@ public class IdentityManagementService {
             String nonce     = FabricGatewayClient.generateNonce();
             String timestamp = Instant.now().toString();
 
-            fabricClient.revokeDID(did, adminDid, reason, nonce, timestamp);
+            FabricGatewayClient.TxOutcome outcome = fabricClient.revokeDID(did, adminDid, reason, nonce, timestamp);
+            String txHash = outcome.txId();  // real on-chain transaction ID
 
             // Update local status
             userRepository.findByDid(did).ifPresent(user -> {
                 user.setStatus("REVOKED");
                 userRepository.save(user);
             });
-
-            String txHash = "fabric:tx:" + UUID.randomUUID().toString().replace("-", "");
             logger.info("DID revoked: {} by admin: {}", did, adminDid);
             return new TxHashResponse(txHash, "REVOKED");
 

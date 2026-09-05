@@ -13,7 +13,8 @@ import java.util.UUID;
  * FabricAccessClient — wrapper around Hyperledger Fabric Gateway Java SDK
  * for the AccessControlChaincode.
  * <p>
- * SUBMIT transactions go through the orderer (state mutations).
+ * SUBMIT transactions go through the orderer (state mutations) and return the
+ * REAL on-chain transaction ID from the commit status.
  * EVALUATE transactions query a peer directly (reads).
  */
 @Component
@@ -48,6 +49,30 @@ public class FabricAccessClient {
         }
     }
 
+    /**
+     * Submits a transaction and returns its real payload + on-chain transaction ID.
+     * Blocks until the transaction is committed to the ledger.
+     */
+    private TxOutcome submit(Contract contract, String transactionName, String... args)
+            throws GatewayException, CommitException {
+        Commit commit = contract.newProposal(transactionName)
+                .addArguments(args)
+                .build()
+                .endorse()
+                .submitAsync();
+        byte[] payload = commit.getResult();
+        String txId = commit.getTransactionId();
+        commit.getStatus(); // await commit completion; throws on failure
+        return new TxOutcome(payload, txId);
+    }
+
+    /** Result of a SUBMIT transaction: chaincode response payload + real tx ID. */
+    public record TxOutcome(byte[] payload, String txId) {
+        public String payloadUtf8() {
+            return new String(payload, StandardCharsets.UTF_8);
+        }
+    }
+
     private Network network() throws GatewayException {
         if (network == null) {
             throw new GatewayException("Fabric gateway unavailable: " + unavailableReason);
@@ -62,14 +87,13 @@ public class FabricAccessClient {
     /**
      * Submit createPolicy — creates an RBAC+ABAC access policy on-chain.
      */
-    public String createPolicy(String policyId, String resourceId, String requiredRole,
-                               String abacAttributesJson, String action, String adminDid,
-                               String nonce, String timestamp)
+    public TxOutcome createPolicy(String policyId, String resourceId, String requiredRole,
+                                  String abacAttributesJson, String action, String adminDid,
+                                  String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(accessChaincode);
-        byte[] result = contract.submitTransaction("AccessControlContract:createPolicy",
+        return submit(contract, "AccessControlContract:createPolicy",
                 policyId, resourceId, requiredRole, abacAttributesJson, action, adminDid, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
@@ -101,15 +125,15 @@ public class FabricAccessClient {
 
     /**
      * Submit logAccess — writes the immutable access decision to the ledger.
+     * The returned TxOutcome.txId() is the real on-chain transaction ID.
      */
-    public String logAccess(String did, String resourceId, String action, String decision,
-                            String reason, String policyId, String contextAttributesJson,
-                            String nonce, String timestamp)
+    public TxOutcome logAccess(String did, String resourceId, String action, String decision,
+                               String reason, String policyId, String contextAttributesJson,
+                               String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(accessChaincode);
-        byte[] result = contract.submitTransaction("AccessControlContract:logAccess",
+        return submit(contract, "AccessControlContract:logAccess",
                 did, resourceId, action, decision, reason, policyId, contextAttributesJson, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
@@ -128,25 +152,23 @@ public class FabricAccessClient {
     /**
      * Submit delegateAccess — grants another DID access within delegator's permissions.
      */
-    public String delegateAccess(String fromDid, String toDid, String resourceId, String action,
-                                 String expiresAt, String nonce, String timestamp)
+    public TxOutcome delegateAccess(String fromDid, String toDid, String resourceId, String action,
+                                    String expiresAt, String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(accessChaincode);
-        byte[] result = contract.submitTransaction("AccessControlContract:delegateAccess",
+        return submit(contract, "AccessControlContract:delegateAccess",
                 fromDid, toDid, resourceId, action, expiresAt, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
      * Submit revokeDelegate — revokes a previously granted delegation.
      */
-    public String revokeDelegate(String fromDid, String toDid, String resourceId,
-                                 String nonce, String timestamp)
+    public TxOutcome revokeDelegate(String fromDid, String toDid, String resourceId,
+                                    String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(accessChaincode);
-        byte[] result = contract.submitTransaction("AccessControlContract:revokeDelegate",
+        return submit(contract, "AccessControlContract:revokeDelegate",
                 fromDid, toDid, resourceId, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     // =========================================================================
@@ -156,25 +178,23 @@ public class FabricAccessClient {
     /**
      * Submit createMultiSigRequest — starts a multi-approver access request.
      */
-    public String createMultiSigRequest(String requestId, String resourceId, String requesterDid,
-                                        String requiredApproversJson, String nonce, String timestamp)
+    public TxOutcome createMultiSigRequest(String requestId, String resourceId, String requesterDid,
+                                           String requiredApproversJson, String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(accessChaincode);
-        byte[] result = contract.submitTransaction("AccessControlContract:createMultiSigRequest",
+        return submit(contract, "AccessControlContract:createMultiSigRequest",
                 requestId, resourceId, requesterDid, requiredApproversJson, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**
      * Submit approveMultiSig — records one approver's approval.
      */
-    public String approveMultiSig(String requestId, String approverDid, String signature,
-                                  String nonce, String timestamp)
+    public TxOutcome approveMultiSig(String requestId, String approverDid, String signature,
+                                     String nonce, String timestamp)
             throws GatewayException, CommitException {
         Contract contract = network().getContract(accessChaincode);
-        byte[] result = contract.submitTransaction("AccessControlContract:approveMultiSig",
+        return submit(contract, "AccessControlContract:approveMultiSig",
                 requestId, approverDid, signature, nonce, timestamp);
-        return new String(result, StandardCharsets.UTF_8);
     }
 
     /**

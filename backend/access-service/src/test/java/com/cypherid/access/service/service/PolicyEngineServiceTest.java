@@ -53,7 +53,8 @@ class PolicyEngineServiceTest {
         when(fabricClient.evaluateAccess(anyString(), eq("DRDO-DOC-007"), eq("READ"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"decision\":\"GRANTED\",\"reason\":\"ALL_POLICIES_SATISFIED\",\"policyId\":\"POLICY-1\",\"resourceId\":\"DRDO-DOC-007\",\"did\":\"did:cypherid:user1\",\"action\":\"READ\"}");
         when(fabricClient.logAccess(anyString(), eq("DRDO-DOC-007"), eq("READ"), eq("GRANTED"), anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("{\"logId\":\"tx-abc\",\"decision\":\"GRANTED\",\"did\":\"did:cypherid:user1\",\"resourceId\":\"DRDO-DOC-007\"}");
+                .thenReturn(new FabricAccessClient.TxOutcome(
+                        "{\"logId\":\"tx-abc\"}".getBytes(), "tx-abc"));
 
         AccessDecisionResponse response = service.requestAccess("did:cypherid:user1", "CLEARANCE_LEVEL_3,ADMIN",
                 new AccessRequest("DRDO-DOC-007", "READ", Map.of("dept", "DRDO")));
@@ -70,7 +71,8 @@ class PolicyEngineServiceTest {
         when(fabricClient.evaluateAccess(anyString(), eq("DRDO-DOC-007"), eq("READ"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"decision\":\"DENIED\",\"reason\":\"INSUFFICIENT_CLEARANCE\",\"policyId\":\"POLICY-1\",\"resourceId\":\"DRDO-DOC-007\",\"did\":\"did:cypherid:user1\",\"action\":\"READ\"}");
         when(fabricClient.logAccess(anyString(), eq("DRDO-DOC-007"), eq("READ"), eq("DENIED"), eq("INSUFFICIENT_CLEARANCE"), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("{\"logId\":\"tx-def\",\"decision\":\"DENIED\"}");
+                .thenReturn(new FabricAccessClient.TxOutcome(
+                        "{\"logId\":\"tx-def\"}".getBytes(), "tx-def"));
 
         AccessDeniedException ex = assertThrows(AccessDeniedException.class,
                 () -> service.requestAccess("did:cypherid:user1", "CLEARANCE_LEVEL_1",
@@ -86,7 +88,7 @@ class PolicyEngineServiceTest {
         when(fabricClient.evaluateAccess(anyString(), eq("UNKNOWN-DOC"), eq("READ"), anyString(), anyString(), anyString()))
                 .thenReturn("{\"decision\":\"DENIED\",\"reason\":\"NO_POLICY_FOUND\",\"policyId\":\"\",\"resourceId\":\"UNKNOWN-DOC\",\"did\":\"did:cypherid:user1\",\"action\":\"READ\"}");
         when(fabricClient.logAccess(anyString(), eq("UNKNOWN-DOC"), eq("READ"), eq("DENIED"), eq("NO_POLICY_FOUND"), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("{\"logId\":\"tx-ghi\"}");
+                .thenReturn(new FabricAccessClient.TxOutcome("{\"logId\":\"tx-ghi\"}".getBytes(), "tx-ghi"));
 
         AccessDeniedException ex = assertThrows(AccessDeniedException.class,
                 () -> service.requestAccess("did:cypherid:user1", "CLEARANCE_LEVEL_3",
@@ -101,7 +103,8 @@ class PolicyEngineServiceTest {
     void createPolicy_asAdmin_createsPolicyAndMirror() throws Exception {
         when(policyRepository.existsByResourceIdAndActiveTrue("DRDO-DOC-007")).thenReturn(false);
         when(fabricClient.createPolicy(anyString(), eq("DRDO-DOC-007"), eq("CLEARANCE_LEVEL_3"), anyString(), eq("READ"), eq("did:cypherid:admin:root"), anyString(), anyString()))
-                .thenReturn("{\"policyId\":\"POLICY-x\",\"resourceId\":\"DRDO-DOC-007\"}");
+                .thenReturn(new FabricAccessClient.TxOutcome(
+                        "{\"policyId\":\"POLICY-x\"}".getBytes(), "tx-policy"));
 
         CreatePolicyResponse response = service.createPolicy("did:cypherid:admin:root", "ADMIN",
                 new CreatePolicyRequest("DRDO-DOC-007", "CLEARANCE_LEVEL_3", Map.of("dept", "DRDO"), "READ"));
@@ -140,7 +143,7 @@ class PolicyEngineServiceTest {
         when(fabricClient.evaluateAccess(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn("{\"decision\":\"GRANTED\",\"reason\":\"ALL_POLICIES_SATISFIED\",\"policyId\":\"POLICY-1\",\"resourceId\":\"DRDO-DOC-007\",\"did\":\"did:cypherid:user1\",\"action\":\"READ\"}");
         when(fabricClient.logAccess(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("{\"logId\":\"tx-1\"}");
+                .thenReturn(new FabricAccessClient.TxOutcome("{\"logId\":\"tx-1\"}".getBytes(), "tx-1"));
 
         service.requestAccess("did:cypherid:user1", "CLEARANCE_LEVEL_3,DRDO",
                 new AccessRequest("DRDO-DOC-007", "READ", Map.of()));
