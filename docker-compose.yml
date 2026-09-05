@@ -565,3 +565,16 @@ services:
       retries: 10
     networks:
       - cypherid-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: cypherid-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - cypherid-net
