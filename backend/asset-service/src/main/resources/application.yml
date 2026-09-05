@@ -1,4 +1,4 @@
-server:
+ue server:
   port: 8083
 
 spring:
@@ -76,6 +76,24 @@ asset:
   master-key: ${ASSET_MASTER_KEY:CypherID-Asset-Master-Key-2026!!}
   kafka:
     topic: ${ASSET_EVENT_TOPIC:asset-events}
+    security-alerts-topic: ${SECURITY_ALERT_TOPIC:security-alerts}
+
+# Access Service (port 8082) — used for access evaluation before session issuance
+access-service:
+  url: ${ACCESS_SERVICE_URL:http://localhost:8082}
+
+# Protected content / session configuration
+protection:
+  # Session JWT signing key — separate from the main access-token key.
+  # Must be at least 32 bytes for HS256; provision via env in production.
+  session-jwt-secret: ${PROTECTION_SESSION_JWT_SECRET:CypherID-Protected-Session-Secret-2026!!}
+  session-token-issuer: ${PROTECTION_SESSION_ISSUER:cypherid-protected-session}
+  # Chunk size for protected content delivery (docs/protection/documents/04_DOCUMENT_DELIVERY.md)
+  chunk-size-bytes: ${PROTECTION_CHUNK_SIZE:65536}
+  # Max chunk requests per session per minute
+  chunk-rate-limit-per-minute: ${PROTECTION_CHUNK_RATE_LIMIT:120}
+  # Event counting window in minutes (docs/protection/capture/10_CAPTURE_RESPONSE_POLICY.md)
+  event-window-minutes: ${PROTECTION_EVENT_WINDOW_MINUTES:5}
 
 # Actuator
 management:

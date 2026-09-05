@@ -12,6 +12,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.kafka:spring-kafka'
+
+    // JWT for protected session tokens (separate signing key from access JWTs)
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
     implementation 'org.hyperledger.fabric:fabric-gateway-java:2.2.9'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
     runtimeOnly 'org.postgresql:postgresql'

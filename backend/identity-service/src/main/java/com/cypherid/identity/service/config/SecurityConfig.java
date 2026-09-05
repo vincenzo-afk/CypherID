@@ -27,12 +27,13 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Auth endpoints — always public (gateway allows without JWT)
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // API paths are permitted: the API Gateway validates JWTs and
+                        // injects trusted X-User-DID / X-User-Roles headers. Direct
+                        // access without the gateway is blocked by network policy.
+                        .requestMatchers("/api/v1/**").permitAll()
                         // Health checks — always public
                         .requestMatchers("/actuator/**").permitAll()
-                        // All other endpoints require authentication
-                        .anyRequest().authenticated()
+                        .anyRequest().denyAll()
                 )
                 .build();
     }

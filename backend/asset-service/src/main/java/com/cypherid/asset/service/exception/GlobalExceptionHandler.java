@@ -54,6 +54,24 @@ public class GlobalExceptionHandler {
                         "Blockchain network unavailable: " + e.getMessage(), null));
     }
 
+    @ExceptionHandler(InvalidSessionException.class)
+    public ResponseEntity<ApiError> handleInvalidSession(InvalidSessionException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiError(e.getCode(), e.getMessage(), null));
+    }
+
+    @ExceptionHandler(SessionObscuredException.class)
+    public ResponseEntity<ApiError> handleSessionObscured(SessionObscuredException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiError("SESSION_OBSCURED", e.getMessage(), null));
+    }
+
+    @ExceptionHandler(ChunkRateExceededException.class)
+    public ResponseEntity<ApiError> handleChunkRateExceeded(ChunkRateExceededException e) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(new ApiError("RATE_LIMIT_EXCEEDED", e.getMessage(), null));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException e) {
         Map<String, Object> details = new LinkedHashMap<>();
