@@ -47,7 +47,7 @@ spring:
 # Hyperledger Fabric configuration
 fabric:
   channel-name: ${FABRIC_CHANNEL:cypherid-channel}
-  org-msp-id: ${FABRIC_ORG_MSP:BELOrgMSP}
+  org-msp-id: ${FABRIC_ORG_MSP:Org1MSP}
   # Chaincode names
   identity-chaincode: identity
   access-chaincode: accesscontrol
@@ -56,8 +56,8 @@ fabric:
   peer-tls-cert-path: ${FABRIC_PEER_TLS_CERT:/config/fabric/tls/peer-ca.crt}
   admin-key-path: ${FABRIC_ADMIN_KEY:/config/fabric/admin/keystore/admin_sk}
   admin-cert-path: ${FABRIC_ADMIN_CERT:/config/fabric/admin/signcerts/admin.pem}
-  peer-endpoint: ${FABRIC_PEER_ENDPOINT:peer0.belorg.cypherid.com:7051}
-  peer-override-authority: ${FABRIC_PEER_OVERRIDE_AUTHORITY:peer0.belorg.cypherid.com}
+  peer-endpoint: ${FABRIC_PEER_ENDPOINT:peer0.org1.cypherid.com:7051}
+  peer-override-authority: ${FABRIC_PEER_OVERRIDE_AUTHORITY:peer0.org1.cypherid.com}
 
 # Access control service settings
 access:

@@ -59,11 +59,11 @@ public class FabricConnectionConfig {
     private String adminCertPath;
 
     /** Peer endpoint: host:port */
-    @Value("${fabric.peer-endpoint:peer0.belorg.cypherid.com:7051}")
+    @Value("${fabric.peer-endpoint:peer0.org1.cypherid.com:7051}")
     private String peerEndpoint;
 
     /** Override authority for TLS (peer's CN in cert) */
-    @Value("${fabric.peer-override-authority:peer0.belorg.cypherid.com}")
+    @Value("${fabric.peer-override-authority:peer0.org1.cypherid.com}")
     private String peerOverrideAuthority;
 
     /**

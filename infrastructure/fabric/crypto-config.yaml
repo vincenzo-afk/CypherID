@@ -1,0 +1,40 @@
+# Hyperledger Fabric crypto material topology (docs/infrastructure/03_FABRIC_NETWORK_DEPLOYMENT.md)
+#
+# Generates:
+#   - orderer.cypherid.com (Raft, single node for demo)
+#   - peer0.org1.cypherid.com  (Org1MSP — BEL)
+#   - peer0.org2.cypherid.com  (Org2MSP — DRDO)
+#   - peer0.org3.cypherid.com  (Org3MSP — MoD)
+#
+# Usage: cryptogen generate --config=crypto-config.yaml --output=crypto-config
+
+OrdererOrgs:
+  - Name: Orderer
+    Domain: cypherid.com
+    Specs:
+      - Hostname: orderer
+
+PeerOrgs:
+  - Name: Org1
+    Domain: org1.cypherid.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+
+  - Name: Org2
+    Domain: org2.cypherid.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+
+  - Name: Org3
+    Domain: org3.cypherid.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1

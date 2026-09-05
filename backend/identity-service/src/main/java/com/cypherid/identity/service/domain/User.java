@@ -29,7 +29,7 @@ public class User {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    /** Fabric organization: BELOrg | DRDOOrg | AdminOrg */
+    /** Organization: BEL | DRDO | MoD (docs/blockchain/03_ORGANIZATIONS.md) */
     @Column(nullable = false, length = 100)
     private String organization;
 

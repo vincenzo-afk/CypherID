@@ -47,10 +47,10 @@ spring:
 fabric:
   network-config-path: ${FABRIC_NETWORK_CONFIG:/config/fabric/connection-profile.yaml}
   channel-name: ${FABRIC_CHANNEL:cypherid-channel}
-  org-msp-id: ${FABRIC_ORG_MSP:BELOrgMSP}
+  org-msp-id: ${FABRIC_ORG_MSP:Org1MSP}
   admin-user: ${FABRIC_ADMIN_USER:admin}
   admin-password: ${FABRIC_ADMIN_PASSWORD:adminpw}
-  ca-url: ${FABRIC_CA_URL:https://ca.belorg.cypherid.com:7054}
+  ca-url: ${FABRIC_CA_URL:https://ca.org1.cypherid.com:7054}
   tls-cert-path: ${FABRIC_TLS_CERT:/config/fabric/tls/ca.crt}
   # Chaincode names
   identity-chaincode: identity

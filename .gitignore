@@ -1,0 +1,33 @@
+# ── Generated Fabric material (contains PRIVATE KEYS — never commit) ─────────
+infrastructure/fabric/crypto-config/
+infrastructure/fabric/artifacts/
+infrastructure/fabric/config/
+
+# ── Environment ────────────────────────────────────────────────────────────────
+.env
+*.local
+
+# ── Build outputs ──────────────────────────────────────────────────────────────
+.gradle/
+**/build/
+build/
+out/
+
+# ── IDE / OS ───────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ── Python (AI service) ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.pkl
+.pytest_cache/
+
+# ── Node (frontend) ────────────────────────────────────────────────────────────
+node_modules/
+dist/
