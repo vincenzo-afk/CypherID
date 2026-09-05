@@ -1,0 +1,144 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "${ALLOWED_ORIGINS:http://localhost:3000}"
+            allowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            allowedHeaders: ["*"]
+            allowCredentials: true
+            maxAge: 3600
+
+      default-filters:
+        - AddRequestHeader=X-Gateway-Version, 1.0
+        - AddResponseHeader=X-Request-ID, ${spring.application.name}
+
+      routes:
+        # Auth routes — no JWT required
+        - id: auth-login
+          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: "#{@ipKeyResolver}"
+
+        # Identity routes
+        - id: identity-service
+          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
+          predicates:
+            - Path=/api/v1/identity/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@didKeyResolver}"
+
+        # Credential routes
+        - id: credential-service
+          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
+          predicates:
+            - Path=/api/v1/credentials/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@didKeyResolver}"
+
+        # Access control routes
+        - id: access-service
+          uri: http://${ACCESS_SVC_HOST:access-svc}:8082
+          predicates:
+            - Path=/api/v1/access/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: "#{@didKeyResolver}"
+
+        # Asset routes
+        - id: asset-service
+          uri: http://${ASSET_SVC_HOST:asset-svc}:8083
+          predicates:
+            - Path=/api/v1/assets/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@didKeyResolver}"
+
+        # Protected content routes
+        - id: protected-content
+          uri: http://${ASSET_SVC_HOST:asset-svc}:8083
+          predicates:
+            - Path=/api/v1/protected-content/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 60
+                redis-rate-limiter.burstCapacity: 120
+                key-resolver: "#{@didKeyResolver}"
+
+        # Audit routes
+        - id: audit-service
+          uri: http://${AUDIT_SVC_HOST:audit-svc}:8084
+          predicates:
+            - Path=/api/v1/audit/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@didKeyResolver}"
+
+        # Health check — no auth
+        - id: health
+          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
+          predicates:
+            - Path=/api/v1/health/**
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!}
+  expiration-seconds: 900
+  refresh-expiration-seconds: 86400
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.cypherid: DEBUG
+    org.springframework.cloud.gateway: INFO
