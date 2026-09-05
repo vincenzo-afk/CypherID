@@ -28,6 +28,8 @@ public class SecurityConfig {
                         // injects trusted X-User-DID / X-User-Roles headers. Direct
                         // access without the gateway is blocked by network policy.
                         .requestMatchers("/api/v1/**").permitAll()
+                        // Internal service-to-service endpoint (ai-svc → asset-service)
+                        .requestMatchers("/api/security/**").permitAll()
                         // Health checks — always public
                         .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().denyAll()
