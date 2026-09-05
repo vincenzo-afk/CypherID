@@ -1,0 +1,94 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: asset-service
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+
+  datasource:
+    # Separate database so each service owns its Flyway migration history.
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:5432/${ASSET_DB:cypherid_asset}
+    username: ${POSTGRES_USER:cypherid}
+    password: ${POSTGRES_PASSWORD:cypherid_secret}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 5000ms
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+
+# Hyperledger Fabric configuration
+fabric:
+  channel-name: ${FABRIC_CHANNEL:cypherid-channel}
+  org-msp-id: ${FABRIC_ORG_MSP:BELOrgMSP}
+  # Chaincode names
+  identity-chaincode: identity
+  access-chaincode: accesscontrol
+  asset-chaincode: assetregistry
+  # Peer connection (same crypto material as other services)
+  peer-tls-cert-path: ${FABRIC_PEER_TLS_CERT:/config/fabric/tls/peer-ca.crt}
+  admin-key-path: ${FABRIC_ADMIN_KEY:/config/fabric/admin/keystore/admin_sk}
+  admin-cert-path: ${FABRIC_ADMIN_CERT:/config/fabric/admin/signcerts/admin.pem}
+  peer-endpoint: ${FABRIC_PEER_ENDPOINT:peer0.belorg.cypherid.com:7051}
+  peer-override-authority: ${FABRIC_PEER_OVERRIDE_AUTHORITY:peer0.belorg.cypherid.com}
+
+# IPFS node (local Kubo for demo; private cluster in production)
+ipfs:
+  api-url: ${IPFS_API_URL:http://localhost:5001}
+
+# Asset encryption
+asset:
+  # Master key used to wrap per-asset AES-256 keys at rest.
+  # In production provision a random 32-byte key via env/Docker secret, e.g.:
+  #   ASSET_MASTER_KEY=$(openssl rand -base64 32)
+  master-key: ${ASSET_MASTER_KEY:CypherID-Asset-Master-Key-2026!!}
+  kafka:
+    topic: ${ASSET_EVENT_TOPIC:asset-events}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.cypherid: DEBUG
+    org.hyperledger: INFO
+    org.springframework.security: INFO
