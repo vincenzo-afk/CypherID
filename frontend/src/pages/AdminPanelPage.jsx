@@ -1,10 +1,67 @@
-import { Box, Typography } from '@mui/material';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Box, Button, TextField, Typography } from '@mui/material';
+import { api } from '../services/api.js';
 
 export default function AdminPanelPage() {
+  const [msg, setMsg] = useState('');
+  const [policy, setPolicy] = useState({ resourceId: '', requiredRole: 'CLEARANCE_LEVEL_1', action: 'READ' });
+  const [displayId, setDisplayId] = useState('');
+  const [forensic, setForensic] = useState(null);
+  const [org, setOrg] = useState({ name: '', mspId: '' });
+  const [role, setRole] = useState({ did: '', role: 'ORG_MEMBER', organization: '' });
+
+  const policies = useQuery({ queryKey: ['policies'], queryFn: () => api.listPolicies().catch(() => []) });
+  const orgs = useQuery({ queryKey: ['orgs'], queryFn: () => api.listOrganizations().catch(() => []) });
+  const secEvents = useQuery({ queryKey: ['secEvents'], queryFn: () => api.securityEvents().catch(() => []) });
+
+  const run = async (fn, ok) => {
+    try { const r = await fn(); setMsg(ok + (r?.txHash ? ` Tx: ${r.txHash}` : '')); policies.refetch(); orgs.refetch(); }
+    catch { setMsg('Operation failed — check role and backend.'); }
+  };
+
   return (
     <Box>
       <Typography variant="h5" gutterBottom>Admin Panel (ORG_ADMIN)</Typography>
-      <Typography variant="body2">Policy management and watermark forensic lookup live here. Watermark lookup requires admin role and is audited.</Typography>
+      {msg && <Typography sx={{ mb: 2 }}>{msg}</Typography>}
+
+      <Typography variant="h6">Access Policies</Typography>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+        <TextField size="small" label="Resource ID" value={policy.resourceId} onChange={(e) => setPolicy({ ...policy, resourceId: e.target.value })} />
+        <TextField size="small" label="Required role" value={policy.requiredRole} onChange={(e) => setPolicy({ ...policy, requiredRole: e.target.value })} />
+        <TextField size="small" label="Action" value={policy.action} onChange={(e) => setPolicy({ ...policy, action: e.target.value })} />
+        <Button variant="contained" onClick={() => run(() => api.createPolicy(policy), 'Policy created.')}>Create</Button>
+      </Box>
+      <pre style={{ maxHeight: 160, overflow: 'auto' }}>{JSON.stringify(policies.data, null, 2)}</pre>
+
+      <Typography variant="h6" sx={{ mt: 2 }}>Watermark Forensics (audited)</Typography>
+      <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+        <TextField size="small" label="Display ID" value={displayId} onChange={(e) => setDisplayId(e.target.value)} />
+        <Button variant="contained" onClick={async () => {
+          try { setForensic(await api.watermarkLookup(displayId)); setMsg('Forensic lookup complete.'); }
+          catch { setMsg('Lookup failed.'); }
+        }}>Lookup</Button>
+      </Box>
+      {forensic && <pre>{JSON.stringify(forensic, null, 2)}</pre>}
+
+      <Typography variant="h6" sx={{ mt: 2 }}>Organizations (SUPER_ADMIN)</Typography>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+        <TextField size="small" label="Org name" value={org.name} onChange={(e) => setOrg({ ...org, name: e.target.value })} />
+        <TextField size="small" label="MSP ID" value={org.mspId} onChange={(e) => setOrg({ ...org, mspId: e.target.value })} />
+        <Button variant="contained" onClick={() => run(() => api.registerOrganization(org), 'Organization registered.')}>Register</Button>
+      </Box>
+      <pre style={{ maxHeight: 120, overflow: 'auto' }}>{JSON.stringify(orgs.data, null, 2)}</pre>
+
+      <Typography variant="h6" sx={{ mt: 2 }}>Assign Role</Typography>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+        <TextField size="small" label="User DID" value={role.did} onChange={(e) => setRole({ ...role, did: e.target.value })} />
+        <TextField size="small" label="Role" value={role.role} onChange={(e) => setRole({ ...role, role: e.target.value })} />
+        <TextField size="small" label="Organization" value={role.organization} onChange={(e) => setRole({ ...role, organization: e.target.value })} />
+        <Button variant="contained" onClick={() => run(() => api.assignRole(role.did, { role: role.role, organization: role.organization }), 'Role assigned.')}>Assign</Button>
+      </Box>
+
+      <Typography variant="h6" sx={{ mt: 2 }}>Security Events</Typography>
+      <pre style={{ maxHeight: 160, overflow: 'auto' }}>{JSON.stringify(secEvents.data, null, 2)}</pre>
     </Box>
   );
 }
