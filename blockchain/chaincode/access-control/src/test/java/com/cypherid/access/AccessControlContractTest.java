@@ -169,6 +169,60 @@ class AccessControlContractTest {
         assertThat(decision).contains("ABAC_ATTRIBUTE_MISMATCH");
     }
 
+    @Test
+    @DisplayName("evaluateAccess: INVALID must not bypass validity check (substring guard)")
+    @SuppressWarnings("unchecked")
+    void evaluateAccess_invalidSubstringDoesNotGrant() {
+        QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        KeyValue kv = mock(KeyValue.class);
+        when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
+        when(iterator.hasNext()).thenReturn(true, false);
+        when(iterator.next()).thenReturn(kv);
+        when(kv.getStringValue()).thenReturn(policyJson("CLEARANCE_LEVEL_3", "{}"));
+
+        // "NOT_VALID" contains "VALID" — must still be rejected
+        String decision = contract.evaluateAccess(ctx, USER_DID, RESOURCE_ID, "READ",
+                "{}", "NOT_VALID,CLEARANCE_LEVEL_3", TIMESTAMP);
+
+        assertThat(decision).contains("DENIED");
+        assertThat(decision).contains("INSUFFICIENT_CLEARANCE");
+    }
+
+    @Test
+    @DisplayName("evaluateAccess: accepts JSON verification form with exact role token")
+    @SuppressWarnings("unchecked")
+    void evaluateAccess_jsonFormGranted() {
+        QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        KeyValue kv = mock(KeyValue.class);
+        when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
+        when(iterator.hasNext()).thenReturn(true, false);
+        when(iterator.next()).thenReturn(kv);
+        when(kv.getStringValue()).thenReturn(policyJson("CLEARANCE_LEVEL_3", "{}"));
+
+        String decision = contract.evaluateAccess(ctx, USER_DID, RESOURCE_ID, "READ",
+                "{}", "{\"result\":\"VALID\",\"roles\":\"CLEARANCE_LEVEL_3,DRDO\"}", TIMESTAMP);
+
+        assertThat(decision).contains("GRANTED");
+    }
+
+    @Test
+    @DisplayName("evaluateAccess: role substring must not satisfy policy")
+    @SuppressWarnings("unchecked")
+    void evaluateAccess_roleSubstringDoesNotGrant() {
+        QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        KeyValue kv = mock(KeyValue.class);
+        when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
+        when(iterator.hasNext()).thenReturn(true, false);
+        when(iterator.next()).thenReturn(kv);
+        when(kv.getStringValue()).thenReturn(policyJson("ADMIN", "{}"));
+
+        String decision = contract.evaluateAccess(ctx, USER_DID, RESOURCE_ID, "READ",
+                "{}", "VALID,ORG_ADMIN", TIMESTAMP);
+
+        assertThat(decision).contains("DENIED");
+        assertThat(decision).contains("ROLE_NOT_SATISFIED");
+    }
+
     // ─── logAccess ────────────────────────────────────────────────────────────
 
     @Test

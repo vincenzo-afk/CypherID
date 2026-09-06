@@ -148,8 +148,8 @@ class PolicyEngineServiceTest {
         service.requestAccess("did:cypherid:user1", "CLEARANCE_LEVEL_3,DRDO",
                 new AccessRequest("DRDO-DOC-007", "READ", Map.of()));
 
-        // The chaincode requires "VALID" + the role to be present in the verification string
+        // The chaincode requires exact "result":"VALID" + the role as an exact token
         verify(fabricClient).evaluateAccess(eq("did:cypherid:user1"), eq("DRDO-DOC-007"), eq("READ"),
-                anyString(), contains("VALID"), anyString());
+                anyString(), contains("\"result\":\"VALID\""), anyString());
     }
 }

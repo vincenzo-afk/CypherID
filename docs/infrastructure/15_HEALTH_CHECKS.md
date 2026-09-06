@@ -22,5 +22,4 @@ Alert if any peer block height lags > 10 blocks from leader.
 | Kafka consumer lag | > 1000 messages |
 | Redis memory usage | > 80% |
 | PostgreSQL connection pool | > 90% utilized |
-| AI service response time | > 5 seconds |
 | Protected session error rate | > 5% |

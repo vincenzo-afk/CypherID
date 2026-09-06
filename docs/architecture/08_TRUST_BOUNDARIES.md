@@ -24,7 +24,3 @@
 - Protected content never delivered without valid session token
 - Session tokens are short-lived and bound to user DID
 - Browser renderer does not receive decryption keys
-
-## Boundary 6: AI Service ↔ Backend
-- AI service can only POST anomaly alerts, cannot read arbitrary data
-- Alert API is authenticated

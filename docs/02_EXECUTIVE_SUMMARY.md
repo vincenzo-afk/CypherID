@@ -14,7 +14,7 @@ CypherID delivers two integrated capabilities:
 - Self-sovereign identity via DIDs on Hyperledger Fabric
 - On-chain RBAC + ABAC access control with immutable audit trail
 - Tokenized digital assets (documents, licenses, IP) with encrypted IPFS storage
-- AI anomaly detection via Python/Kafka microservice
+- Kafka-streamed audit events with realtime dashboard and PDF reporting
 
 ### 2. Camera-Resistant Protected Content
 - Software-based rendering engine designed to reduce camera capture readability
@@ -32,4 +32,4 @@ CypherID delivers two integrated capabilities:
 | Real Blockchain | Distributed consensus, cryptography, smart contracts |
 | Scalability | Microservices + Kafka + Fabric channels |
 | Demo-ability | Fully dockerized, live tx hashes, protected content visible |
-| Innovation | SSI + ABAC + AI + NFTs + Camera Resistance on permissioned ledger |
+| Innovation | SSI + ABAC + NFTs + Camera Resistance on permissioned ledger |

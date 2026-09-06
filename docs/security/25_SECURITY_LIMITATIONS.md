@@ -21,10 +21,9 @@ The system cannot prevent:
 - Fabric nodes must be majority honest (Byzantine fault tolerance is limited in Raft)
 - Chaincode bugs could compromise on-chain state
 
-### AI Anomaly Detection
-- Isolation Forest generates false positives (tuned to ~5% contamination)
-- Novel attack patterns not seen in training data may not be detected
-- AI alerts are advisory; human review is required
+### Session Monitoring
+- Session security events are advisory; human review is required for HIGH-severity alerts
+- Novel attack patterns may not match existing event classifications
 
 ### Camera Resistance
 - Physical camera capture cannot be prevented by software

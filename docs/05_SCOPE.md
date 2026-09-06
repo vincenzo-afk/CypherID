@@ -37,10 +37,5 @@
 - Login, Identity Wallet, Asset Hub, Access Requests, Admin Panel
 - Audit Dashboard, Protected Document UI, Protected Exam UI, Protected Video UI
 
-### AI
-- Python FastAPI anomaly detection microservice
-- Isolation Forest model
-- Kafka consumer pipeline
-
 ## Out of Scope
 See `docs/06_NON_GOALS.md`.

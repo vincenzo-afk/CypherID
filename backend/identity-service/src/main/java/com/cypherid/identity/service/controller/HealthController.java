@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
  * HealthController — platform health aggregation
  * (docs/api/17_HEALTH_APIS.md).
  *
- * <p>GET /api/v1/health        → {status, components:{fabric, postgresql, redis, kafka, ipfs, aiService}}
+ * <p>GET /api/v1/health        → {status, components:{fabric, postgresql, redis, kafka, ipfs}}
  * <p>GET /api/v1/health/fabric → {peers, channelName, chaincodes}
  */
 @RestController
@@ -42,13 +42,11 @@ public class HealthController {
         components.put("fabric", checkFabric());
         components.put("postgresql", checkPostgres());
         components.put("redis", checkRedis());
-        // Kafka / IPFS / AI are owned by sibling services; report reachability hints.
+        // Kafka / IPFS are owned by sibling services; report reachability hints.
         components.put("kafka", Map.of("status", "UNKNOWN",
                 "note", "Owned by access/asset services; see their /actuator/health"));
         components.put("ipfs", Map.of("status", "UNKNOWN",
                 "note", "Owned by asset-service; see its /actuator/health"));
-        components.put("aiService", Map.of("status", "UNKNOWN",
-                "note", "Standalone Python service on :8090"));
 
         boolean up = components.values().stream()
                 .allMatch(c -> !"DOWN".equals(((Map<?, ?>) c).get("status")));

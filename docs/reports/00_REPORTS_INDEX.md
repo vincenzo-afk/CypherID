@@ -5,5 +5,4 @@
 - PERFORMANCE_REPORT.md — Performance benchmark results
 - ACCESSIBILITY_REPORT.md — WCAG 2.1 AA compliance
 - BROWSER_COMPATIBILITY_REPORT.md — Browser support matrix
-- AI_MODEL_EVALUATION_REPORT.md — Isolation Forest evaluation
 - FINAL_SYSTEM_VALIDATION_REPORT.md — End-to-end system validation

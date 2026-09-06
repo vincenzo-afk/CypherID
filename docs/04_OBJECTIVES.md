@@ -6,9 +6,8 @@
 2. **On-Chain Access Control** — RBAC + ABAC policies enforced in smart contracts with immutable logs.
 3. **Digital Asset Management** — Tokenized documents with cryptographically verifiable ownership and transfer.
 4. **Zero-Trust Architecture** — Every request verified cryptographically; no implicit trust.
-5. **AI Anomaly Detection** — Real-time detection of insider threats and suspicious access patterns.
-6. **Camera-Resistant Content** — Software-based rendering to reduce readability of captured content.
-7. **Forensic Watermarking** — Session-specific watermarks to identify the source of leaked captures.
+5. **Camera-Resistant Content** — Software-based rendering to reduce readability of captured content.
+6. **Forensic Watermarking** — Session-specific watermarks to identify the source of leaked captures.
 
 ## Measurable Targets
 
@@ -17,7 +16,6 @@
 | Identity | Every user has a DID with resolvable DID document |
 | Access | Every access decision recorded as blockchain transaction |
 | Assets | Every document has on-chain ownership proof |
-| AI | Anomaly alerts generated for defined suspicious patterns |
 | Protection | Protected renderer applied to all classified document views |
 | Watermark | Every protected session has unique session watermark |
 | Audit | PDF report with embedded tx hashes generatable on demand |

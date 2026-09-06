@@ -21,7 +21,6 @@ frontend/dist
 # Python
 __pycache__
 *.pyc
-backend/ai-service/model/*.pkl
 
 # Docs are not needed inside build images
 docs

@@ -31,8 +31,5 @@ Permissioned Hyperledger Fabric network. Provides:
 - CouchDB: Fabric world state (rich queries for chaincode)
 - IPFS: encrypted binary file storage
 
-### AI Layer
-Python FastAPI microservice consuming Kafka topics and returning anomaly scores.
-
 ### Protection Layer
 Browser-side rendering engine (Canvas/WebGL/CSS) plus Java backend services for session and watermark management.

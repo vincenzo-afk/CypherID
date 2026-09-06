@@ -19,6 +19,6 @@ Mapping from watermark → full session → full user: requires access to Postgr
 Events logged: event type, session ID, timestamp, severity.
 Not logged: document content, decryption keys, full request payloads.
 
-## AI Anomaly Logging
-Features logged: behavioral signals (time, frequency, resource type).
+## Session Security Logging
+Behavioral signals logged: event type, time, frequency, resource type.
 Not logged: document titles, full URLs with content identifiers.

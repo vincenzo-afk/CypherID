@@ -73,11 +73,6 @@ class SessionStateMachineTest {
     }
 
     @Test
-    void aiAnomaly_suspiciousActivity() {
-        assertEquals(STATE_SUSPICIOUS_ACTIVITY, machine.apply(STATE_PROTECTED_VIEW, EVT_AI_ANOMALY, 1).newState());
-    }
-
-    @Test
     void expired_stateIsTerminal() {
         Transition t = machine.apply(STATE_EXPIRED, EVT_TAB_HIDDEN, 1);
         assertEquals(STATE_EXPIRED, t.newState());

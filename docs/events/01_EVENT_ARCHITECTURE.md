@@ -8,7 +8,7 @@ Consumed by backend services via Fabric event listener.
 
 ### Kafka Events (async, streaming)
 Produced by backend services.
-Consumed by: AI anomaly service, Audit service, Notification service.
+Consumed by: Audit service, Notification service.
 
 ### WebSocket Events (real-time, browser)
 Published by Audit service.
@@ -21,7 +21,7 @@ High-severity events also written on-chain as SecurityAlert.
 ## Kafka Topics
 | Topic | Producer | Consumer(s) |
 |:---|:---|:---|
-| `access-logs` | Access Service | AI Anomaly Service, Audit Service |
+| `access-logs` | Access Service | Audit Service |
 | `identity-events` | Identity Service | Notification Service, Audit Service |
 | `asset-events` | Asset Service | Notification Service, Audit Service |
 | `security-alerts` | Security Event Service | Audit Service, WebSocket |

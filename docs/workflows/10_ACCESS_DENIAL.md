@@ -2,4 +2,4 @@
 
 Access denied = HTTP 403 + reason code.
 Denial logged on-chain as AccessLog with decision=DENIED.
-AI service receives denial event via Kafka (feeds anomaly detection).
+Denial event published to Kafka access-logs topic (consumed by the Audit service).

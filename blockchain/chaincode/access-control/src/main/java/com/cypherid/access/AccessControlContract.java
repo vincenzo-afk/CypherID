@@ -135,12 +135,16 @@ public class AccessControlContract implements ContractInterface {
             return buildDecision("DENIED", "POLICY_INACTIVE", policy.getPolicyId(), resourceId, did, action);
         }
 
-        // ── RBAC Check: verify VC result contains required role ────────────────
+        // ── RBAC Check: verify VC result ────────────────────────────────────
+        // Exact validity check (never contains("VALID"): "INVALID" contains
+        // "VALID" as a substring). Accepts the JSON form
+        // {"result":"VALID","roles":"R1,R2"} and the legacy "VALID,R1,R2" form.
+        // Role match is exact per-token (not substring).
         if (policy.getRequiredRole() != null && !policy.getRequiredRole().isBlank()) {
-            if (vcVerificationResult == null || !vcVerificationResult.contains("VALID")) {
+            if (!isVcResultValid(vcVerificationResult)) {
                 return buildDecision("DENIED", "INSUFFICIENT_CLEARANCE", policy.getPolicyId(), resourceId, did, action);
             }
-            if (!vcVerificationResult.contains(policy.getRequiredRole())) {
+            if (!vcRolesContain(vcVerificationResult, policy.getRequiredRole())) {
                 return buildDecision("DENIED", "ROLE_NOT_SATISFIED", policy.getPolicyId(), resourceId, did, action);
             }
         }
@@ -213,6 +217,56 @@ public class AccessControlContract implements ContractInterface {
 
         logger.info("Access {} for DID: {} resource: {}", decision, did, resourceId);
         return log;
+    }
+
+    /**
+     * Exact VC validity check. Accepts JSON {@code {"result":"VALID",...}} or the
+     * legacy {@code "VALID"} / {@code "VALID,ROLE,..."} form. Rejects "INVALID".
+     */
+    static boolean isVcResultValid(String vcVerificationResult) {
+        if (vcVerificationResult == null || vcVerificationResult.isBlank()) {
+            return false;
+        }
+        String v = vcVerificationResult.trim();
+        if (v.startsWith("{")) {
+            try {
+                Type mapType = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> m = GSON.fromJson(v, mapType);
+                return "VALID".equals(m != null ? m.get("result") : null);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return v.equals("VALID") || v.startsWith("VALID,");
+    }
+
+    /**
+     * Exact per-token role match against JSON {@code "roles"} or the legacy
+     * comma-separated suffix after {@code "VALID,"}.
+     */
+    static boolean vcRolesContain(String vcVerificationResult, String requiredRole) {
+        if (vcVerificationResult == null || requiredRole == null) {
+            return false;
+        }
+        String v = vcVerificationResult.trim();
+        String rolesCsv = "";
+        if (v.startsWith("{")) {
+            try {
+                Type mapType = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> m = GSON.fromJson(v, mapType);
+                rolesCsv = m != null && m.get("roles") != null ? m.get("roles") : "";
+            } catch (Exception e) {
+                return false;
+            }
+        } else if (v.startsWith("VALID,")) {
+            rolesCsv = v.substring("VALID,".length());
+        }
+        for (String token : rolesCsv.split(",")) {
+            if (requiredRole.equals(token.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // =========================================================================

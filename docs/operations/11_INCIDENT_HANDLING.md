@@ -5,7 +5,7 @@
 |:---|:---|:---|
 | P1 CRITICAL | Data breach, unauthorized access to classified content | Immediate |
 | P2 HIGH | Service unavailable, authentication bypass | < 30 minutes |
-| P3 MEDIUM | AI anomaly alert, session security event | < 2 hours |
+| P3 MEDIUM | Session security event | < 2 hours |
 | P4 LOW | Performance degradation, non-security error | < 24 hours |
 
 ## P1 Response

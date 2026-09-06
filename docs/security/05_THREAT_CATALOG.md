@@ -13,7 +13,7 @@
 | T-09 | Key exfiltration | API response | Keys never in API responses |
 | T-10 | Camera capture | Physical | Camera-resistant rendering |
 | T-11 | Screen recording | OS-level | Monitored (browser events); not preventable |
-| T-12 | Insider threat | Legitimate access | AI anomaly detection + audit |
+| T-12 | Insider threat | Legitimate access | Tamper-evident audit + session monitoring |
 | T-13 | Admin abuse | Admin credentials | Emergency override fully audited |
 | T-14 | DDoS | High request volume | Rate limiting + connection limits |
 | T-15 | CORS bypass | Cross-origin request | Strict CORS policy |

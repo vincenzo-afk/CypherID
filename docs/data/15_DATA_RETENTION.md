@@ -11,7 +11,6 @@ Access logs, DID history, asset provenance: retained indefinitely.
 | protected_sessions | 7 years (compliance) |
 | watermarks | 7 years (forensic) |
 | security_events | 7 years (compliance) |
-| ai_anomaly_alerts | 2 years |
 | asset_encryption_keys | Until asset burned + 1 year |
 
 ## Redis

@@ -2,7 +2,7 @@
 #
 # Usage:
 #   cp .env.example .env          # adjust secrets
-#   docker compose build          # builds the Java services + AI service
+#   docker compose build          # builds the Java services + frontend
 #   docker compose up -d          # starts infrastructure + services
 #
 # NOTE: The Fabric network (CA, orderer, peer, CouchDB) is defined behind the
@@ -98,8 +98,10 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -402,7 +404,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-cypherid}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
       REDIS_HOST: redis
-      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_BOOTSTRAP: kafka:29092
       JWT_SECRET: ${JWT_SECRET:-CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!}
       FABRIC_CHANNEL: ${FABRIC_CHANNEL:-cypherid-channel}
       FABRIC_ORG_MSP: ${FABRIC_ORG_MSP:-Org1MSP}
@@ -441,7 +443,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-cypherid}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
       REDIS_HOST: redis
-      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_BOOTSTRAP: kafka:29092
       FABRIC_CHANNEL: ${FABRIC_CHANNEL:-cypherid-channel}
       FABRIC_ORG_MSP: ${FABRIC_ORG_MSP:-Org1MSP}
       FABRIC_PEER_ENDPOINT: ${FABRIC_PEER_ENDPOINT:-peer0.org1.cypherid.com:7051}
@@ -479,7 +481,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-cypherid}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
       REDIS_HOST: redis
-      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_BOOTSTRAP: kafka:29092
       IPFS_API_URL: http://ipfs:5001
       ACCESS_SERVICE_URL: http://access-svc:8082
       ASSET_MASTER_KEY: ${ASSET_MASTER_KEY:-CypherID-Asset-Master-Key-2026!!}
@@ -523,7 +525,7 @@ services:
       AUDIT_DB: cypherid_audit
       POSTGRES_USER: ${POSTGRES_USER:-cypherid}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
-      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_BOOTSTRAP: kafka:29092
     ports:
       - "8084:8084"
     depends_on:
@@ -533,33 +535,6 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health | grep -q UP || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-    networks:
-      - cypherid-net
-
-  ai-svc:
-    build:
-      context: ./backend/ai-service
-      dockerfile: Dockerfile
-    container_name: cypherid-ai-svc
-    environment:
-      KAFKA_BOOTSTRAP: kafka:9092
-      ACCESS_LOGS_TOPIC: access-logs
-      JAVA_BACKEND_URL: http://asset-svc:8083
-      AI_ANOMALY_THRESHOLD: ${AI_ANOMALY_THRESHOLD:--0.1}
-      AI_CONTAMINATION: ${AI_CONTAMINATION:-0.05}
-      AI_MODEL_PATH: /app/model/isolation_forest.pkl
-    ports:
-      - "8090:8090"
-    depends_on:
-      kafka:
-        condition: service_healthy
-      asset-svc:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
       interval: 15s
       timeout: 10s
       retries: 10

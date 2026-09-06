@@ -11,7 +11,7 @@ Emergency override is FULLY AUDITED:
 - Recorded on-chain immediately
 - Visible in real-time on the Audit Dashboard
 - Cannot be hidden or retroactively removed
-- Triggers AI anomaly service alert
+- Triggers a HIGH-severity security event (visible on the Audit Dashboard)
 
 ## Restrictions
 - Override grants access for a maximum of 1 hour (configurable)

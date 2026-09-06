@@ -14,8 +14,7 @@
 | Zookeeper | confluentinc/cp-zookeeper:7.x | Official |
 | Redis | redis:7-alpine | Official |
 | Backend services | eclipse-temurin:21-jre-alpine | Custom (Gradle build) |
-| AI service | python:3.11-slim | Custom (pip build) |
-| Frontend | node:20-alpine (dev) | Custom (Vite dev server) |
+| Frontend | node:20-alpine (build) + nginx:1.25-alpine (serve) | Custom (multi-stage build) |
 
 ## Build Process
 ```bash

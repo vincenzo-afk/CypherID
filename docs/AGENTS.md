@@ -83,12 +83,11 @@ Before modifying any subsystem:
 | 11 | Exam protection |
 | 12 | Video protection |
 | 13 | Camera-Resistance Lab |
-| 14 | AI anomaly detection |
-| 15 | Frontend integration |
-| 16 | Security testing |
-| 17 | Performance testing |
-| 18 | End-to-end validation |
-| 19 | Demo preparation |
+| 14 | Frontend integration |
+| 15 | Security testing |
+| 16 | Performance testing |
+| 17 | End-to-end validation |
+| 18 | Demo preparation |
 
 ---
 

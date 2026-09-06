@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * SecurityAlertProducer — publishes security alerts to the security-alerts
  * topic (docs/backend/13_SECURITY_EVENT_SERVICE.md). Consumed by the Audit
- * dashboard and AI anomaly pipeline. Best-effort: Kafka outages must never
+ * dashboard. Best-effort: Kafka outages must never
  * block event handling.
  */
 @Component

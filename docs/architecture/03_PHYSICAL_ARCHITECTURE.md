@@ -24,5 +24,4 @@
 | Access Service | access-svc | 8082 | |
 | Asset Service | asset-svc | 8083 | |
 | Audit Service | audit-svc | 8084 | |
-| AI Service | ai-svc | 8090 | Python FastAPI |
 | Frontend | frontend | 3000 | React dev server |

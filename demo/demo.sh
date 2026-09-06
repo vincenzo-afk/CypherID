@@ -90,9 +90,16 @@ esac
 step "Minute 4 — audit trail + PDF report (docs/api/07)"
 TRAIL=$(call GET '/api/v1/audit/logs?size=5')
 case "$TRAIL" in
-  *DENIED*|*GRANTED*|*content*|*events*) ok "audit trail queryable" ;;
+  *DENIED*|*GRANTED*|*content*|*events*) ok "audit trail queryable: denial → grant visible" ;;
   *) fail "audit trail unexpected: $(printf '%s' "$TRAIL" | head -c 160)" ;;
 esac
+
+# Rapid-fire denied requests to exercise rate limiting + security-event capture.
+for _ in 1 2 3; do
+  call POST /api/v1/access/request \
+    '{"resourceId":"DRDO-DESIGN-007","action":"READ","contextAttributes":{"department":"Avionics"}}' >/dev/null
+done
+ok "burst of denied requests submitted (rate limiting + security events engaged)"
 
 END=$(date -u +%Y-%m-%dT%H:%M:%SZ); START="2026-01-01T00:00:00Z"
 if curl -sf -o /tmp/cypherid-audit-report.pdf \

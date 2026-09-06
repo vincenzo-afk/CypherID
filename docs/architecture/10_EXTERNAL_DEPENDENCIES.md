@@ -14,6 +14,4 @@
 | React | 18.x | Frontend framework | MIT |
 | Material-UI | 5.x | UI component library | MIT |
 | iText | 7.x | PDF generation | AGPL / Commercial |
-| Python FastAPI | 0.x | AI microservice framework | MIT |
-| scikit-learn | 1.x | Isolation Forest | BSD |
 | Docker | 24.x | Containerization | Apache 2.0 |

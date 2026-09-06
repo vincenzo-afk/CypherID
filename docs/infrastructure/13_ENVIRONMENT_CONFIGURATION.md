@@ -26,10 +26,6 @@ FABRIC_CHANNEL=cypherid-channel
 # Master encryption key
 MASTER_KEY_PATH=/run/secrets/master_key
 
-# AI Service
-AI_SERVICE_URL=http://ai-svc:8090
-AI_ANOMALY_THRESHOLD=-0.1
-
 # IPFS
 IPFS_API_URL=http://ipfs:5001
 ```

@@ -24,8 +24,6 @@ import java.util.UUID;
  * (docs/backend/13_SECURITY_EVENT_SERVICE.md).
  * <p>
  * HIGH severity events are published to the security-alerts Kafka topic.
- * (On-chain SecurityAlert writing requires chaincode support planned for the
- * AI anomaly phase and is intentionally not invented here.)
  */
 @Service
 public class SecurityEventService {
@@ -41,7 +39,6 @@ public class SecurityEventService {
             Map.entry("PRINT_DIALOG", "MEDIUM"),
             Map.entry("FULLSCREEN_EXIT", "MEDIUM"),
             Map.entry("SESSION_OBSCURED", "MEDIUM"),
-            Map.entry("AI_ANOMALY", "HIGH"),
             Map.entry("EMERGENCY_OVERRIDE", "HIGH"));
 
     private final SecurityEventRepository eventRepository;

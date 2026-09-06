@@ -3,7 +3,7 @@
 **Status:** Template — populate after Phase 18 end-to-end validation
 
 ## Validation Scope
-Full end-to-end system: identity → access control → asset management → protected content → AI → audit
+Full end-to-end system: identity → access control → asset management → protected content → audit
 
 ## Test Scenarios Executed
 
@@ -17,7 +17,7 @@ Full end-to-end system: identity → access control → asset management → pro
 | Protected document rendering | [PASS/FAIL] | |
 | Exam session protection | [PASS/FAIL] | |
 | Video protection | [PASS/FAIL] | |
-| AI anomaly alert generation | [PASS/FAIL] | |
+| Session security alert generation | [PASS/FAIL] | |
 | Audit PDF generation with tx hashes | [PASS/FAIL] | |
 | Emergency override (audited) | [PASS/FAIL] | |
 | Session expiry enforcement | [PASS/FAIL] | |

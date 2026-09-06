@@ -20,7 +20,6 @@ CypherID is a permissioned blockchain platform built on Hyperledger Fabric (Java
 | `api/` | API contracts for all endpoints |
 | `data/` | Data models for all persistence layers |
 | `security/` | Threat model, trust model, cryptography, attack surface |
-| `ai/` | Anomaly detection microservice, Kafka pipeline |
 | `infrastructure/` | Docker, deployment, configuration |
 | `workflows/` | End-to-end user and system workflows |
 | `events/` | Blockchain events, Kafka events, security events |

@@ -31,4 +31,3 @@
 |:---|:---|
 | Single peer down | System continues (2 of 3 peers) |
 | Redis down | Degraded (session cache miss acceptable) |
-| AI service down | System continues (no anomaly detection) |

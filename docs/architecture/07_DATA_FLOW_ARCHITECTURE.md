@@ -29,13 +29,11 @@ User → Request Document #123
   → Decrypt in Protected Session Service → serve to browser via protected renderer
 ```
 
-## Flow 4: AI Anomaly Detection
+## Flow 4: Security Event Streaming
 ```
 Every access event → Kafka topic: access-logs
-  → Python FastAPI consumer
-  → Feature extraction → Isolation Forest inference
-  → IF anomaly: POST /api/security/alert → Java backend
-  → Security Event Service → write SecurityAlert on-chain
+  → Audit Service consumer
+  → Security Event Service → HIGH severity published to security-alerts
   → WebSocket push to Audit Dashboard
 ```
 

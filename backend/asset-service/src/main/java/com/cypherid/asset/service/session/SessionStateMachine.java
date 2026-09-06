@@ -30,7 +30,6 @@ public class SessionStateMachine {
     public static final String EVT_PRINT_DIALOG     = "PRINT_DIALOG";
     public static final String EVT_FULLSCREEN_EXIT  = "FULLSCREEN_EXIT";
     public static final String EVT_SESSION_OBSCURED = "SESSION_OBSCURED";
-    public static final String EVT_AI_ANOMALY       = "AI_ANOMALY";
     public static final String EVT_EMERGENCY_OVERRIDE = "EMERGENCY_OVERRIDE";
 
     // ─── Actions returned to the frontend ─────────────────────────────────────
@@ -88,8 +87,6 @@ public class SessionStateMachine {
                     : new Transition(currentState, ACTION_CONTINUE);
 
             case EVT_SESSION_OBSCURED -> new Transition(STATE_CONTENT_OBSCURED, ACTION_OBSCURE);
-
-            case EVT_AI_ANOMALY -> new Transition(STATE_SUSPICIOUS_ACTIVITY, ACTION_CONTINUE);
 
             // Emergency override is an access grant event, not a session-state event
             case EVT_EMERGENCY_OVERRIDE -> new Transition(currentState, ACTION_CONTINUE);

@@ -6,7 +6,6 @@
 - Asset transferred to you
 - Security event (if you are the subject)
 - Session expiry warning
-- AI anomaly alert (for admins)
 
 ## UI
 Bell icon in TopNav with unread count badge.

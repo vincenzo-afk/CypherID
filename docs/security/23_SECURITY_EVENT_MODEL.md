@@ -3,7 +3,7 @@
 See `docs/events/08_SECURITY_EVENTS.md` for event types and severity.
 
 ## Event Lifecycle
-1. Event occurs (browser event, AI anomaly, admin action)
+1. Event occurs (browser event, session event, admin action)
 2. SecurityEventService classifies severity
 3. PostgreSQL security_events record written
 4. If HIGH severity: on-chain SecurityAlert written

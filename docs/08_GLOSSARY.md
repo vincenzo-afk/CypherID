@@ -25,7 +25,6 @@
 | Protection Profile | A named configuration (LOW/MEDIUM/HIGH/EXTREME) for protection parameters |
 | Protected Session | An authorized, time-limited session for viewing protected content |
 | Watermark | An embedded identifier in displayed content for forensic traceability |
-| Isolation Forest | An unsupervised ML algorithm for anomaly detection |
 | Kafka | Apache Kafka — a distributed event streaming platform |
 | HSM | Hardware Security Module — dedicated hardware for cryptographic key management |
 | Shamir's Secret Sharing | A cryptographic method to split a secret into N shares, requiring K shares to reconstruct |

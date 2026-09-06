@@ -80,20 +80,3 @@ CREATE TABLE IF NOT EXISTS asset_encryption_keys (
     algorithm       VARCHAR(20)     NOT NULL DEFAULT 'AES_256_GCM',
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
-
--- AI anomaly alerts
-CREATE TABLE IF NOT EXISTS ai_anomaly_alerts (
-    id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_did                VARCHAR(255) NOT NULL,
-    anomaly_score           DECIMAL(10,6) NOT NULL,
-    features                JSONB        NOT NULL,
-    pattern_description     VARCHAR(500),
-    blockchain_tx_hash      VARCHAR(255),
-    acknowledged            BOOLEAN      NOT NULL DEFAULT FALSE,
-    acknowledged_by         VARCHAR(255),
-    acknowledged_at         TIMESTAMPTZ,
-    created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_ai_anomaly_alerts_user_did ON ai_anomaly_alerts(user_did);
-CREATE INDEX IF NOT EXISTS idx_ai_anomaly_alerts_created_at ON ai_anomaly_alerts(created_at DESC);

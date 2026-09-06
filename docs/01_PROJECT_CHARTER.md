@@ -23,21 +23,20 @@ Smart India Hackathon (SIH)
 2. Smart Access Control — RBAC + ABAC enforced on-chain with immutable audit trails
 3. Digital Asset Vault — tokenized ownership with encrypted off-chain storage
 4. Zero-Trust Security — cryptographic verification for every access request
-5. AI-Powered Threat Detection — anomaly detection on access patterns
-6. Camera-Resistant Protected Content — software-based content protection layer
+5. Camera-Resistant Protected Content — software-based content protection layer
 
 ## Primary Language
 Java 21 (LTS) — 80%+ of codebase
 
 ## Secondary Languages
-Python 3.11 (AI microservice only), JavaScript/TypeScript (React frontend only)
+JavaScript/TypeScript (React frontend only)
 
 ## Team Roles
 - Team Lead / Architect
 - Blockchain Developer (Java chaincode)
 - Backend Lead (Spring Boot)
 - Frontend Developer (React)
-- Security / AI Engineer
+- Security Engineer
 - DevOps
 
 ## Success Criteria

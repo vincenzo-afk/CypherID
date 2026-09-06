@@ -10,7 +10,7 @@
 - Recovery: PostgreSQL restart from persistent volume; point-in-time backup restore
 
 ## Kafka Failure
-- Impact: AI anomaly detection unavailable; audit streaming degraded
+- Impact: Audit streaming degraded
 - Mitigation: Services continue operating; events queued locally
 - Recovery: Kafka restart; consumers catch up from offset
 
@@ -18,11 +18,6 @@
 - Impact: Session cache miss; JWT blacklist unavailable; rate limiting disabled
 - Mitigation: Services fall back to database session lookup; stricter rate limiting fallback
 - Recovery: Redis restart; cache warm-up from PostgreSQL
-
-## AI Service Failure
-- Impact: Anomaly detection unavailable; no new AI-generated alerts
-- Mitigation: System continues operating; manual audit review
-- Recovery: AI service restart; model reloaded from disk
 
 ## IPFS Failure
 - Impact: Asset upload and retrieval unavailable

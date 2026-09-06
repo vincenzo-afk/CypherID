@@ -30,9 +30,3 @@
 - `WatermarkService` — Session-specific watermark generation
 - `ProtectedContentService` — Authorized content delivery
 - `SecurityEventService` — Security event logging and response
-
-## AI Service Components (Python)
-- `KafkaConsumer` — Consumes access-logs topic
-- `FeatureExtractor` — Feature engineering from access log entries
-- `AnomalyDetector` — Isolation Forest inference
-- `AlertPublisher` — Posts anomaly alerts to Java backend

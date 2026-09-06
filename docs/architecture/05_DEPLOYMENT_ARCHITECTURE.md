@@ -27,8 +27,7 @@ All services run on a single host via Docker Compose for hackathon demo.
 9. IPFS
 10. Backend services (identity, access, asset, audit)
 11. API Gateway
-12. AI service
-13. Frontend
+12. Frontend
 
 ### Health Checks
 Every service defines a health check. Backend services wait for Fabric peer health before starting.

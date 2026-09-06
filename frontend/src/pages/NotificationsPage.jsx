@@ -23,7 +23,7 @@ export default function NotificationsPage() {
     <Box>
       <Typography variant="h5" gutterBottom>Notifications</Typography>
       <Typography variant="body2" sx={{ mb: 2 }}>
-        Security alerts (including AI anomaly alerts), access decisions, and session events appear here.
+        Security alerts, access decisions, and session events appear here.
       </Typography>
       {items.length === 0 && <Typography variant="body2">No notifications.</Typography>}
       {items.map((n) => (

@@ -12,8 +12,7 @@ import java.util.Map;
 /**
  * AccessLogProducer — publishes access decisions to Kafka.
  * <p>
- * Consumed by the AI Anomaly Detection pipeline (docs/ai/, Phase 14)
- * and the Audit service. Publishing is best-effort: a Kafka outage
+ * Consumed by the Audit service over Kafka. Publishing is best-effort: a Kafka outage
  * must never block the access decision itself.
  */
 @Component

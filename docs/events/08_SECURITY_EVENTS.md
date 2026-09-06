@@ -9,7 +9,6 @@
 | FULLSCREEN_EXIT | LOW | Fullscreen exited during exam |
 | REPEATED_FOCUS_LOSS | MEDIUM | 3+ focus loss events in 5 minutes |
 | SESSION_OBSCURED | MEDIUM | Session entered CONTENT_OBSCURED state |
-| AI_ANOMALY | HIGH | Isolation Forest anomaly detected |
 | EMERGENCY_OVERRIDE | HIGH | Super-admin emergency access granted |
 | MULTISIG_APPROVED | MEDIUM | Multi-signature approval completed |
 | RAPID_ACCESS | HIGH | >10 resource accesses per minute |
@@ -24,7 +23,7 @@ This ensures tamper-evident audit trail for high-risk events.
 {
   "alertId": "uuid",
   "userDID": "did:cypherid:0x...",
-  "eventType": "AI_ANOMALY",
+  "eventType": "EMERGENCY_OVERRIDE",
   "severity": "HIGH",
   "description": "...",
   "timestamp": "ISO-8601",

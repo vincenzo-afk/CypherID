@@ -26,7 +26,7 @@ import java.util.UUID;
  * Flow (docs/access-control/01_ACCESS_CONTROL_ARCHITECTURE.md):
  * 1. evaluateAccess on-chain (read-only decision)
  * 2. logAccess on-chain (immutable audit record for BOTH granted and denied)
- * 3. Publish access event to Kafka (AI anomaly pipeline)
+ * 3. Publish access event to Kafka (audit streaming)
  * 4. GRANTED → return decision; DENIED → 403 with reason code
  */
 @Service
@@ -83,7 +83,7 @@ public class PolicyEngineService {
                     reason, policyId, contextJson, nonce, timestamp);
             String txHash = logOutcome.txId();  // real on-chain transaction ID
 
-            // 3. Feed the AI anomaly pipeline (best-effort)
+            // 3. Audit streaming over Kafka (best-effort)
             accessLogProducer.publishAccessLog(did, request.resourceId(), request.action(),
                     decisionValue, reason, timestamp);
 
@@ -286,10 +286,13 @@ public class PolicyEngineService {
 
     /**
      * Builds the VC verification string expected by AccessControlChaincode.evaluateAccess.
-     * Roles come from the gateway-validated JWT (already authenticated).
+     * JSON form {@code {"result":"VALID","roles":"R1,R2"}} — the chaincode parses
+     * {@code result} with exact equality (never substring) and matches roles
+     * per-token. Roles come from the gateway-validated JWT (already authenticated).
      */
     private String buildVcVerification(String roles) {
-        return "VALID" + (roles == null || roles.isBlank() ? "" : "," + roles);
+        String clean = roles == null ? "" : roles.trim();
+        return gson.toJson(Map.of("result", "VALID", "roles", clean));
     }
 
     private PolicyResponse toPolicyResponse(AccessPolicyEntity e) {

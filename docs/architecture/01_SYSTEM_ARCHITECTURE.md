@@ -34,8 +34,7 @@ PERSISTENCE LAYER
 
 SUPPORTING SERVICES
   ├── Apache Kafka (Async Event Streaming)
-  ├── Redis (Sessions, JWT Blacklist, Nonce Cache)
-  └── Python FastAPI (AI Anomaly Detection Microservice)
+  └── Redis (Sessions, JWT Blacklist, Nonce Cache)
 ```
 
 ## Hackathon 48-Hour Roadmap
@@ -47,6 +46,6 @@ SUPPORTING SERVICES
 | 10–18h | Backend | 5 Spring Boot services, Fabric Gateway, JWT, REST APIs |
 | 18–26h | Frontend | React: Login, DID Wallet, Asset Upload, Access Request, Admin Panel |
 | 26–32h | Integration | End-to-end: Register → Issue DID → Upload Asset → Request Access → Audit |
-| 32–38h | Security + AI | AES encryption, IPFS, Python anomaly service, Kafka streaming |
+| 32–38h | Security | AES encryption, IPFS, security-event pipeline, Kafka streaming |
 | 38–44h | Demo Data | DRDO scenario: employee, classified doc, denial, grant, audit trail |
 | 44–48h | Pitch | Architecture poster, PPT, 5-min demo script, deployment |

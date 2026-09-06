@@ -71,16 +71,3 @@ CREATE TABLE asset_encryption_keys (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
-
-### ai_anomaly_alerts
-```sql
-CREATE TABLE ai_anomaly_alerts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_did VARCHAR(255) NOT NULL,
-  anomaly_score DECIMAL(10,6) NOT NULL,
-  features JSONB NOT NULL,
-  pattern_description VARCHAR(500),
-  blockchain_tx_hash VARCHAR(255),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```

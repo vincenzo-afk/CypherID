@@ -34,11 +34,6 @@
 - FR-PR-06: System shall support LOW, MEDIUM, HIGH, and EXTREME protection profiles.
 - FR-PR-07: System shall log all security events.
 
-### AI
-- FR-AI-01: System shall detect anomalous access patterns via Isolation Forest model.
-- FR-AI-02: System shall write AI-generated security alerts on-chain.
-- FR-AI-03: System shall stream access logs to AI service via Kafka.
-
 ## Non-Functional Requirements
 
 - NFR-01: Backend primary language is Java 21.

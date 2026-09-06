@@ -3,7 +3,7 @@
 ## Sections
 1. **Live Event Stream** — Real-time WebSocket feed of all events
 2. **Access Log Table** — Filterable/sortable: timestamp, user DID, resource, action, decision, tx hash
-3. **Security Alerts** — AI anomaly alerts + browser security events
+3. **Security Alerts** — browser security events + session alerts
 4. **Asset Provenance** — Search any asset, see full history
 5. **Policy Change Log** — Who changed what policy and when
 6. **Export** — PDF report generation

@@ -86,31 +86,25 @@ Follow this order. Do not skip phases. Each phase depends on the previous.
 - [ ] Test matrix execution
 - [ ] Results documentation
 
-## Phase 14: AI Anomaly Detection
-- [ ] Kafka producer (Access Service)
-- [ ] Python consumer + Isolation Forest inference
-- [ ] Alert pipeline to Java backend
-- [ ] On-chain SecurityAlert writing
-
-## Phase 15: Frontend Integration
+## Phase 14: Frontend Integration
 - [ ] All pages: Login, Wallet, AssetHub, AccessRequests, AdminPanel
 - [ ] AuditDashboard with WebSocket
 - [ ] ProtectedDocumentViewer, ProtectedExamViewer, ProtectedVideoViewer
 
-## Phase 16: Security Testing
+## Phase 15: Security Testing
 - [ ] All AT-xx tests passing
 - [ ] Session security tests passing
 - [ ] Authorization bypass tests passing
 
-## Phase 17: Performance Testing
+## Phase 16: Performance Testing
 - [ ] Load test: 50 concurrent access requests
 - [ ] Throughput test: blockchain tx/sec
 - [ ] Rendering performance: 60fps at MEDIUM profile
 
-## Phase 18: End-to-End Validation
+## Phase 17: End-to-End Validation
 - [ ] Full demo scenario: register → issue DID → upload asset → access request → grant → protect → audit
 
-## Phase 19: Demo Preparation
+## Phase 18: Demo Preparation
 - [ ] Demo data seeded
 - [ ] Demo script validated
 - [ ] Architecture poster

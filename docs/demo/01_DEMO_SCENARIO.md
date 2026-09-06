@@ -31,10 +31,10 @@
 6. Show watermark overlay on content
 7. Point camera at screen — content appears distorted
 
-### Minute 4: AI Anomaly and Audit
-1. Simulate rapid access pattern (trigger AI anomaly alert)
-2. Show AI alert in Audit Dashboard with on-chain SecurityAlert tx hash
-3. Show full audit log: denial → grant → anomaly alert
+### Minute 4: Security Events and Audit
+1. Trigger a browser capture event (e.g. tab-hide) to raise a session security alert
+2. Show the security alert in the Audit Dashboard with on-chain tx hash
+3. Show full audit log: denial → grant → security alert
 4. Export PDF audit report with embedded tx hashes
 
 ### Minute 5: System Health
