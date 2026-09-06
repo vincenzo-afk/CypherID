@@ -7,16 +7,15 @@ import org.slf4j.LoggerFactory;
 /**
  * AccessControlChaincode — entry point for Fabric Java chaincode.
  */
-public class AccessControlChaincode extends ContractRouter {
+public final class AccessControlChaincode {
 
     private static final Logger logger = LoggerFactory.getLogger(AccessControlChaincode.class);
 
-    public AccessControlChaincode() {
-        super(new String[]{ AccessControlContract.class.getName() });
+    private AccessControlChaincode() {
     }
 
     public static void main(String[] args) {
         logger.info("Starting CypherID Access Control Chaincode...");
-        new AccessControlChaincode().start(args);
+        new ContractRouter(new String[]{ AccessControlContract.class.getName() }).start(args);
     }
 }

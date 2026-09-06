@@ -59,14 +59,28 @@ public class FabricGatewayClient {
      */
     private TxOutcome submit(Contract contract, String transactionName, String... args)
             throws GatewayException, CommitException {
-        Commit commit = contract.newProposal(transactionName)
-                .addArguments(args)
-                .build()
-                .endorse()
-                .submitAsync();
-        byte[] payload = commit.getResult();
+        final Transaction transaction;
+        try {
+            transaction = contract.newProposal(transactionName)
+                    .addArguments(args)
+                    .build()
+                    .endorse();
+        } catch (EndorseException e) {
+            throw unavailable("Endorsement failed: " + e.getMessage());
+        }
+        byte[] payload = transaction.getResult();
+        final SubmittedTransaction commit;
+        try {
+            commit = transaction.submitAsync();
+        } catch (SubmitException e) {
+            throw unavailable("Submit failed: " + e.getMessage());
+        }
         String txId = commit.getTransactionId();
-        commit.getStatus(); // await commit completion; throws on failure
+        try {
+            commit.getStatus(); // await commit completion; throws on failure
+        } catch (CommitStatusException e) {
+            throw unavailable("Commit failed: " + e.getMessage());
+        }
         return new TxOutcome(payload, txId);
     }
 
@@ -79,9 +93,19 @@ public class FabricGatewayClient {
 
     private Network network() throws GatewayException {
         if (network == null) {
-            throw new GatewayException("Fabric gateway unavailable: " + unavailableReason);
+            throw unavailable("Fabric gateway unavailable: " + unavailableReason);
         }
         return network;
+    }
+
+    /**
+     * Wraps a failure as a GatewayException with UNAVAILABLE status so existing
+     * catch sites (mapped to FABRIC_UNAVAILABLE) keep working. The v1 SDK
+     * GatewayException has no String constructor.
+     */
+    private static GatewayException unavailable(String message) {
+        return new GatewayException(
+                io.grpc.Status.UNAVAILABLE.withDescription(message).asRuntimeException());
     }
 
     // =========================================================================

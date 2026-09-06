@@ -12,7 +12,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.kafka:spring-kafka'
-    implementation 'org.hyperledger.fabric:fabric-gateway-java:2.2.9'
+    implementation 'org.hyperledger.fabric:fabric-gateway:1.12.1'
+    // gRPC Netty channel (compile scope: shaded NettyChannelBuilder used by FabricConnectionConfig)
+    implementation 'io.grpc:grpc-netty-shaded:1.61.1'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.flywaydb:flyway-core'

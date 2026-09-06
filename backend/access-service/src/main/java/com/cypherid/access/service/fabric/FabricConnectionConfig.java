@@ -134,7 +134,7 @@ public class FabricConnectionConfig {
         if (!Files.exists(certPath)) {
             throw new IOException("Admin certificate not found: " + adminCertPath);
         }
-        return Identities.newX509Identity(orgMspId,
+        return new X509Identity(orgMspId,
                 Identities.readX509Certificate(Files.newBufferedReader(certPath)));
     }
 

@@ -177,6 +177,84 @@ public class PolicyEngineService {
     }
 
     /**
+     * Updates an access policy: deactivates the old version and creates a new
+     * on-chain version (admin only, audited). The old policyId is retired and
+     * a new policyId is issued so the ledger keeps full version history.
+     */
+    public PolicyResponse updatePolicy(String policyId, String adminDid, String roles,
+                                       CreatePolicyRequest request) {
+        requireAdminRole(roles);
+
+        AccessPolicyEntity existing = policyRepository.findAll().stream()
+                .filter(p -> policyId.equals(p.getPolicyId()) && p.isActive())
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("POLICY_NOT_FOUND",
+                        "No active policy found: " + policyId));
+
+        // Retire old version locally
+        existing.setActive(false);
+        policyRepository.save(existing);
+
+        // Create replacement version on-chain (new policyId, same resource)
+        CreatePolicyRequest replacement = new CreatePolicyRequest(
+                existing.getResourceId(),
+                request.requiredRole() != null ? request.requiredRole() : existing.getRequiredRole(),
+                request.abacAttributes() != null
+                        ? request.abacAttributes()
+                        : gson.fromJson(existing.getAbacAttributes(), STRING_MAP_TYPE),
+                request.action() != null ? request.action() : existing.getAction());
+        CreatePolicyResponse created = createPolicy(adminDid, roles, replacement);
+
+        logger.info("Policy updated: {} superseded by {} (admin: {})",
+                policyId, created.policyId(), adminDid);
+
+        return new PolicyResponse(created.policyId(), existing.getResourceId(),
+                replacement.requiredRole(), replacement.abacAttributes(), replacement.action(),
+                true, adminDid, Instant.now().toString(), Instant.now().toString());
+    }
+
+    /**
+     * Emergency override (SUPER_ADMIN only, resource-specific, ≤1h).
+     * Grants temporary access outside normal policy; fully audited on-chain
+     * via logAccess with reason EMERGENCY_OVERRIDE and flagged for review.
+     */
+    public AccessDecisionResponse emergencyOverride(String adminDid, String roles,
+                                                   String resourceId, String reason) {
+        if (roles == null || !roles.contains("SUPER_ADMIN")) {
+            throw new AccessDeniedException("SUPER_ADMIN_ROLE_REQUIRED", null);
+        }
+        if (resourceId == null || resourceId.isBlank()) {
+            throw new IllegalArgumentException("resourceId is required");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("reason is required");
+        }
+
+        String timestamp = Instant.now().toString();
+        String contextJson = gson.toJson(Map.of("emergencyOverride", "true",
+                "reason", reason, "grantedBy", adminDid));
+        try {
+            // Record the override immutably on-chain (authoritative audit evidence)
+            FabricAccessClient.TxOutcome outcome = fabricClient.logAccess(
+                    adminDid, resourceId, "EMERGENCY_OVERRIDE", "GRANTED",
+                    "EMERGENCY_OVERRIDE:" + reason, "EMERGENCY",
+                    contextJson, FabricAccessClient.generateNonce(), timestamp);
+            accessLogProducer.publishAccessLog(adminDid, resourceId, "EMERGENCY_OVERRIDE",
+                    "GRANTED", "EMERGENCY_OVERRIDE:" + reason, timestamp);
+            logger.warn("EMERGENCY OVERRIDE by {} on {} (tx: {}) reason: {}",
+                    adminDid, resourceId, outcome.txId(), reason);
+            return new AccessDecisionResponse("GRANTED", "EMERGENCY_OVERRIDE",
+                    outcome.txId(), null, null);
+        } catch (GatewayException e) {
+            throw new FabricUnavailableException("Blockchain network unavailable", e);
+        } catch (AccessDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Emergency override failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Reads an immutable access log entry from the ledger.
      */
     @Transactional(readOnly = true)

@@ -5,11 +5,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * CypherID Audit Service (port 8084)
- * <p>
- * SCAFFOLD ONLY — placeholder so the monorepo Gradle build configures and the
- * API Gateway's /api/v1/audit/** route has a target. Full audit query,
- * dashboard WebSocket, and Kafka audit consumer are implemented in a later
- * phase (see docs/backend/06_AUDIT_SERVICE.md).
+ *
+ * <p>Audit log queries (PostgreSQL mirror of Fabric + Kafka events),
+ * realtime WebSocket event streaming (WS /ws/audit), Kafka audit consumer
+ * (access-logs, security-alerts, protection-events), and iText PDF reports
+ * (see docs/backend/06_AUDIT_SERVICE.md).
  */
 @SpringBootApplication
 public class AuditServiceApplication {

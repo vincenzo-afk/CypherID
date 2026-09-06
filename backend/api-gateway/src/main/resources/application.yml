@@ -51,18 +51,8 @@ spring:
                 redis-rate-limiter.burstCapacity: 60
                 key-resolver: "#{@didKeyResolver}"
 
-        # Credential routes
-        - id: credential-service
-          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
-          predicates:
-            - Path=/api/v1/credentials/**
-          filters:
-            - name: JwtAuthFilter
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 30
-                redis-rate-limiter.burstCapacity: 60
-                key-resolver: "#{@didKeyResolver}"
+        # (Credentials live under /api/v1/identity/credentials/**,
+        # covered by the identity-service route above.)
 
         # Access control routes
         - id: access-service
@@ -101,6 +91,72 @@ spring:
               args:
                 redis-rate-limiter.replenishRate: 60
                 redis-rate-limiter.burstCapacity: 120
+                key-resolver: "#{@didKeyResolver}"
+
+        # Exam routes (asset-service ExamController)
+        - id: exam-service
+          uri: http://${ASSET_SVC_HOST:asset-svc}:8083
+          predicates:
+            - Path=/api/v1/exams/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@didKeyResolver}"
+
+        # Video routes (asset-service VideoController)
+        - id: video-service
+          uri: http://${ASSET_SVC_HOST:asset-svc}:8083
+          predicates:
+            - Path=/api/v1/videos/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@didKeyResolver}"
+
+        # Identity admin routes (org registry + role assignment) — must
+        # precede the generic admin route below (first match wins).
+        - id: identity-admin
+          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
+          predicates:
+            - Path=/api/v1/admin/organizations/**, /api/v1/admin/users/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@didKeyResolver}"
+
+        # Admin + security-event routes (asset-service AdminController)
+        - id: admin-service
+          uri: http://${ASSET_SVC_HOST:asset-svc}:8083
+          predicates:
+            - Path=/api/v1/admin/**, /api/v1/security/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@didKeyResolver}"
+
+        # Notification routes (asset-service NotificationController)
+        - id: notification-service
+          uri: http://${ASSET_SVC_HOST:asset-svc}:8083
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
                 key-resolver: "#{@didKeyResolver}"
 
         # Audit routes

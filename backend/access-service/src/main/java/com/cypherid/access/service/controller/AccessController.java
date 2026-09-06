@@ -19,6 +19,7 @@ import java.util.List;
  * POST /api/v1/access/policies                   → create policy (admin)
  * GET  /api/v1/access/policies                   → list policies (admin)
  * GET  /api/v1/access/policies/{resourceId}      → get policy (admin)
+ * PUT  /api/v1/access/policies/{policyId}      → update policy (admin, audited)
  * POST /api/v1/access/delegate                   → delegate access
  * PUT  /api/v1/access/delegate/revoke            → revoke delegation
  * POST /api/v1/access/multisig                   → create multi-sig request
@@ -97,6 +98,19 @@ public class AccessController {
         return ResponseEntity.ok(policyEngineService.getPolicyByResourceId(resourceId));
     }
 
+    /**
+     * PUT /api/v1/access/policies/{policyId} — update a policy (admin only, audited).
+     */
+    @PutMapping("/policies/{policyId}")
+    public ResponseEntity<PolicyResponse> updatePolicy(
+            @PathVariable String policyId,
+            @RequestHeader("X-User-DID") String adminDid,
+            @RequestHeader("X-User-Roles") String roles,
+            @Valid @RequestBody CreatePolicyRequest request) {
+
+        return ResponseEntity.ok(policyEngineService.updatePolicy(policyId, adminDid, roles, request));
+    }
+
     // ─── Delegation ───────────────────────────────────────────────────────────
 
     /**
@@ -161,6 +175,22 @@ public class AccessController {
     @GetMapping("/logs/{logId}")
     public ResponseEntity<AccessLogResponse> getAccessLog(@PathVariable String logId) {
         return ResponseEntity.ok(policyEngineService.getAccessLog(logId));
+    }
+
+    // ─── Emergency override ───────────────────────────────────────────────────
+
+    /**
+     * POST /api/v1/access/emergency-override — SUPER_ADMIN only, resource-specific,
+     * reason required, fully recorded on-chain (docs/api/15_ADMIN_APIS.md).
+     */
+    @PostMapping("/emergency-override")
+    public ResponseEntity<AccessDecisionResponse> emergencyOverride(
+            @RequestHeader("X-User-DID") String adminDid,
+            @RequestHeader("X-User-Roles") String roles,
+            @Valid @RequestBody EmergencyOverrideRequest request) {
+
+        return ResponseEntity.ok(policyEngineService.emergencyOverride(
+                adminDid, roles, request.resourceId(), request.reason()));
     }
 
     private void requireAdminRole(String roles) {

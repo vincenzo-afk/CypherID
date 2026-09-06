@@ -7,16 +7,15 @@ import org.slf4j.LoggerFactory;
 /**
  * AssetChaincode — entry point for Fabric Java chaincode.
  */
-public class AssetChaincode extends ContractRouter {
+public final class AssetChaincode {
 
     private static final Logger logger = LoggerFactory.getLogger(AssetChaincode.class);
 
-    public AssetChaincode() {
-        super(new String[]{ AssetContract.class.getName() });
+    private AssetChaincode() {
     }
 
     public static void main(String[] args) {
         logger.info("Starting CypherID Asset Registry Chaincode...");
-        new AssetChaincode().start(args);
+        new ContractRouter(new String[]{ AssetContract.class.getName() }).start(args);
     }
 }

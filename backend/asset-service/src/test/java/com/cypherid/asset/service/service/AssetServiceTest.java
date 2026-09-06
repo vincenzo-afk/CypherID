@@ -193,7 +193,9 @@ class AssetServiceTest {
     @Test
     void getAssetMetadata_notFound_throws() throws Exception {
         when(fabricClient.queryAsset("MISSING")).thenThrow(
-                new org.hyperledger.fabric.client.GatewayException("Error endorsing chaincode: Asset not found: MISSING"));
+                new org.hyperledger.fabric.client.GatewayException(io.grpc.Status.NOT_FOUND
+                        .withDescription("Error endorsing chaincode: Asset not found: MISSING")
+                        .asRuntimeException()));
 
         assertThrows(ResourceNotFoundException.class, () -> service.getAssetMetadata("MISSING"));
     }
