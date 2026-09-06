@@ -19,9 +19,22 @@ export default function NotificationsPage() {
     try { await api.markNotificationRead(id); refetch(); } catch { /* noop */ }
   };
 
+  const markAllRead = async () => {
+    const unread = items.filter((n) => !n.read).map((n) => n.id || n.notificationId).filter(Boolean);
+    for (const id of unread) {
+      try { await api.markNotificationRead(id); } catch { /* per-item best effort */ }
+    }
+    refetch();
+  };
+
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Notifications</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Typography variant="h5" gutterBottom>Notifications</Typography>
+        {items.some((n) => !n.read) && (
+          <Button size="small" variant="outlined" onClick={markAllRead}>Mark all as read</Button>
+        )}
+      </Box>
       <Typography variant="body2" sx={{ mb: 2 }}>
         Security alerts, access decisions, and session events appear here.
       </Typography>

@@ -21,7 +21,9 @@ import java.nio.charset.StandardCharsets;
 /**
  * JwtAuthFilter — Spring Cloud Gateway filter for JWT validation.
  * <p>
- * Validates Bearer token on every incoming request (except /api/v1/auth/**).
+ * Validates the Bearer token on every request passing through a route that
+ * applies this filter. Public routes (/api/v1/auth/**, /api/v1/health/**)
+ * do NOT apply this filter — see application.yml route definitions.
  * On success: forwards JWT claims (DID, org, roles) as request headers to downstream services.
  * On failure: returns 401 Unauthorized immediately.
  */

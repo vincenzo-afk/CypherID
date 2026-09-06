@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * AdminController — super-admin organization registry and user role
@@ -86,7 +87,7 @@ public class AdminController {
 
         requireAdminRole(roles);
         User user = userRepository.findByDid(did)
-                .orElseThrow(() -> new RuntimeException("DID not found: " + did));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "DID not found: " + did));
         user.setClearanceLevel(request.role());
         if (request.organization() != null && !request.organization().isBlank()) {
             user.setOrganization(request.organization());

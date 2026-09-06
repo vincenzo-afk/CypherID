@@ -2,11 +2,11 @@
 
 ## POST /api/v1/identity/did
 Create a new DID (triggers KYC + Fabric CA enrollment).
+Server generates the keypair and derives the DID — clients never supply key material.
 
 **Request:**
 ```json
 {
-  "publicKey": "...",
   "organization": "DRDO",
   "department": "R&D",
   "kycData": { "name": "...", "employeeId": "..." }

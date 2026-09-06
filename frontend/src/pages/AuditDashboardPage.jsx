@@ -10,27 +10,48 @@ const rowsOf = (data) => {
   return [];
 };
 
+const isoDaysAgo = (days) => new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
 export default function AuditDashboardPage() {
   const [filters, setFilters] = useState({ did: '', resourceId: '', decision: '' });
   const [applied, setApplied] = useState({});
+  const [startDate, setStartDate] = useState(isoDaysAgo(7));
+  const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
+  const [provenanceId, setProvenanceId] = useState('');
+  const [provenance, setProvenance] = useState(null);
+
   const { data, refetch, isFetching } = useQuery({
     queryKey: ['audit', applied],
     queryFn: () => api.auditLogs({ ...applied, size: 50 }).catch(() => ({ events: [] }))
   });
   const rows = rowsOf(data);
 
+  const secQuery = useQuery({
+    queryKey: ['audit-sec-events'],
+    queryFn: () => api.securityEvents().catch(() => []),
+    refetchInterval: 30000
+  });
+  const secEvents = rowsOf(secQuery.data);
+
   const download = async () => {
     try {
-      const end = new Date().toISOString();
-      const start = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-      const blob = await api.auditReport(start, end);
+      const blob = await api.auditReport(
+        new Date(startDate).toISOString(),
+        new Date(endDate).toISOString()
+      );
       const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'cypherid-audit-report.pdf';
+      a.download = `cypherid-audit-report-${startDate}-to-${endDate}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch { /* backend unavailable */ }
+  };
+
+  const lookupProvenance = async () => {
+    if (!provenanceId.trim()) return;
+    try { setProvenance(await api.assetHistory(provenanceId.trim())); }
+    catch { setProvenance({ error: 'Provenance lookup failed.' }); }
   };
 
   return (
@@ -41,7 +62,11 @@ export default function AuditDashboardPage() {
         <TextField size="small" label="Resource" value={filters.resourceId} onChange={(e) => setFilters({ ...filters, resourceId: e.target.value })} />
         <TextField size="small" label="Decision" value={filters.decision} onChange={(e) => setFilters({ ...filters, decision: e.target.value })} />
         <Button variant="contained" onClick={() => { setApplied({ ...filters }); setTimeout(() => refetch(), 0); }}>Filter</Button>
-        <Button variant="outlined" onClick={download}>PDF (7d)</Button>
+      </Box>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2, alignItems: 'center' }}>
+        <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        <Button variant="outlined" onClick={download}>Export PDF</Button>
       </Box>
       {isFetching && <Typography variant="body2">Loading…</Typography>}
       <Table size="small">
@@ -69,6 +94,39 @@ export default function AuditDashboardPage() {
         </TableBody>
       </Table>
       {rows.length === 0 && !isFetching && <Typography variant="body2" sx={{ mt: 1 }}>No audit events.</Typography>}
+
+      <Typography variant="h6" sx={{ mt: 3 }}>Security Alerts ({secEvents.length})</Typography>
+      {secEvents.length === 0
+        ? <Typography variant="body2">No security alerts.</Typography>
+        : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Time</TableCell>
+                <TableCell>Event</TableCell>
+                <TableCell>Severity</TableCell>
+                <TableCell>Session</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {secEvents.map((s, i) => (
+                <TableRow key={s.id || i}>
+                  <TableCell>{s.timestamp || s.createdAt || ''}</TableCell>
+                  <TableCell>{s.eventType || s.type || ''}</TableCell>
+                  <TableCell>{s.severity || ''}</TableCell>
+                  <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.sessionId || ''}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+      <Typography variant="h6" sx={{ mt: 3 }}>Asset Provenance</Typography>
+      <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+        <TextField size="small" label="Asset ID" value={provenanceId} onChange={(e) => setProvenanceId(e.target.value)} />
+        <Button variant="outlined" onClick={lookupProvenance}>Lookup</Button>
+      </Box>
+      {provenance && <pre style={{ maxHeight: 240, overflow: 'auto' }}>{JSON.stringify(provenance, null, 2)}</pre>}
     </Box>
   );
 }

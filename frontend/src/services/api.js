@@ -14,9 +14,16 @@ apiClient.interceptors.request.use((config) => {
 });
 
 // Paths follow docs/api/* (source of truth per docs/AGENTS.md).
+const newNonce = () => {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  } catch { /* insecure context fallback below */ }
+  return `nonce-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e12).toString(36)}`;
+};
+
 export const api = {
   login: (did, password) =>
-    apiClient.post('/api/v1/auth/login', { did, password, nonce: crypto.randomUUID() }).then((r) => r.data),
+    apiClient.post('/api/v1/auth/login', { did, password, nonce: newNonce() }).then((r) => r.data),
   refresh: () => apiClient.post('/api/v1/auth/refresh').then((r) => r.data),
   logout: () => apiClient.post('/api/v1/auth/logout').then((r) => r.data),
   me: () => apiClient.get('/api/v1/auth/me').then((r) => r.data),
@@ -46,11 +53,18 @@ export const api = {
   updatePolicy: (policyId, body) =>
     apiClient.put(`/api/v1/access/policies/${encodeURIComponent(policyId)}`, body).then((r) => r.data),
   delegateAccess: (body) => apiClient.post('/api/v1/access/delegate', body).then((r) => r.data),
+  revokeDelegate: (body) => apiClient.put('/api/v1/access/delegate/revoke', body).then((r) => r.data),
+  createMultiSig: (body) => apiClient.post('/api/v1/access/multisig', body).then((r) => r.data),
+  approveMultiSig: (requestId, body) =>
+    apiClient.post(`/api/v1/access/multisig/${encodeURIComponent(requestId)}/approve`, body).then((r) => r.data),
+  accessLog: (logId) => apiClient.get(`/api/v1/access/logs/${encodeURIComponent(logId)}`).then((r) => r.data),
   emergencyOverride: (body) => apiClient.post('/api/v1/access/emergency-override', body).then((r) => r.data),
 
   // Assets (docs/api/06_ASSET_APIS.md)
   uploadAsset: (formData) =>
     apiClient.post('/api/v1/assets', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data),
+  listAssets: (ownerDID) =>
+    apiClient.get('/api/v1/assets', { params: { ownerDID } }).then((r) => r.data),
   getAsset: (assetId) => apiClient.get(`/api/v1/assets/${encodeURIComponent(assetId)}`).then((r) => r.data),
   transferAsset: (assetId, body) =>
     apiClient.post(`/api/v1/assets/${encodeURIComponent(assetId)}/transfer`, body).then((r) => r.data),
