@@ -36,14 +36,14 @@ public class FabricAssetClient {
             this.gateway = config.buildGateway();
             this.network = gateway.getNetwork(config.getChannelName());
             logger.info("Fabric Gateway connected to channel: {}", config.getChannelName());
-        } catch (Exception e) {
+        } catch (Throwable t) {
             // Do not fail startup when Fabric crypto material / network is absent.
             // Transactions fail with FABRIC_UNAVAILABLE until the network is reachable.
             this.gateway = null;
             this.network = null;
-            this.unavailableReason = e.getMessage();
+            this.unavailableReason = t.getMessage();
             logger.warn("Fabric Gateway unavailable at startup ({}). " +
-                    "Transactions will fail until the network is reachable.", e.getMessage());
+                    "Transactions will fail until the network is reachable.", t.getMessage());
         }
     }
 

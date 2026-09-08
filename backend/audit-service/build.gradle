@@ -13,15 +13,14 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.kafka:spring-kafka'
     runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'com.h2database:h2'
     implementation 'org.flywaydb:flyway-core'
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'com.itextpdf:itext7-core:8.0.5'
     implementation 'io.micrometer:micrometer-registry-prometheus'
-
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.mockito:mockito-core:5.11.0'
-    testImplementation 'com.h2database:h2'
 }
 
 springBoot {
