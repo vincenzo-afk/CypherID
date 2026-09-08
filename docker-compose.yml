@@ -82,7 +82,7 @@ services:
     ports:
       - "2181:2181"
     healthcheck:
-      test: ["CMD-SHELL", "zkServer.sh status || exit 1"]
+      test: ["CMD-SHELL", "printf 'srvr\\n' | nc -w 2 127.0.0.1 2181 | grep -q 'Zookeeper version'"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -237,12 +237,12 @@ services:
       ORDERER_GENERAL_TLS_ENABLED: "true"
       ORDERER_GENERAL_TLS_PRIVATEKEY: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.key
       ORDERER_GENERAL_TLS_CERTIFICATE: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.crt
-      ORDERER_GENERAL_TLS_ROOTCAS: ["/etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/tlsca/tlsca.cypherid.com-cert.pem"]
+      ORDERER_GENERAL_TLS_ROOTCAS: '["/etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/tlsca/tlsca.cypherid.com-cert.pem"]'
       ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.crt
       ORDERER_GENERAL_CLUSTER_SERVERCERTIFICATE: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.crt
       ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.key
       ORDERER_GENERAL_CLUSTER_SERVERPRIVATEKEY: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.key
-      ORDERER_GENERAL_CLUSTER_ROOTCAS: ["/etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/tlsca/tlsca.cypherid.com-cert.pem"]
+      ORDERER_GENERAL_CLUSTER_ROOTCAS: '["/etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/tlsca/tlsca.cypherid.com-cert.pem"]'
     ports:
       - "7050:7050"
     volumes:
@@ -366,6 +366,7 @@ services:
     build:
       context: .
       dockerfile: backend/api-gateway/Dockerfile
+      network: host
     container_name: cypherid-api-gateway
     environment:
       REDIS_HOST: redis
@@ -397,6 +398,7 @@ services:
     build:
       context: .
       dockerfile: backend/identity-service/Dockerfile
+      network: host
     container_name: cypherid-identity-svc
     environment:
       POSTGRES_HOST: postgres
@@ -436,6 +438,7 @@ services:
     build:
       context: .
       dockerfile: backend/access-service/Dockerfile
+      network: host
     container_name: cypherid-access-svc
     environment:
       POSTGRES_HOST: postgres
@@ -474,6 +477,7 @@ services:
     build:
       context: .
       dockerfile: backend/asset-service/Dockerfile
+      network: host
     container_name: cypherid-asset-svc
     environment:
       POSTGRES_HOST: postgres
@@ -519,6 +523,7 @@ services:
     build:
       context: .
       dockerfile: backend/audit-service/Dockerfile
+      network: host
     container_name: cypherid-audit-svc
     environment:
       POSTGRES_HOST: postgres
@@ -545,6 +550,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      network: host
     container_name: cypherid-frontend
     ports:
       - "3000:80"

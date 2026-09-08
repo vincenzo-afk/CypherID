@@ -126,6 +126,9 @@ public class AssetService {
         } catch (GatewayException e) {
             logger.error("Fabric unavailable during asset mint: {}", e.getMessage());
             throw new FabricUnavailableException("Blockchain network unavailable", e);
+        } catch (IPFSException e) {
+            // Keep the documented 503/IPFS_UPLOAD_FAILED contract intact.
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Asset upload failed: " + e.getMessage(), e);
         }

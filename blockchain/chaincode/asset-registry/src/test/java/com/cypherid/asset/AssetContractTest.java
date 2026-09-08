@@ -1,6 +1,7 @@
 package com.cypherid.asset;
 
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.List;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.shim.ChaincodeStub;
@@ -254,8 +255,10 @@ class AssetContractTest {
     @SuppressWarnings("unchecked")
     void getAssetHistory_empty() {
         QueryResultsIterator<KeyModification> iterator = mock(QueryResultsIterator.class);
+        Iterator<KeyModification> results = mock(Iterator.class);
         when(stub.getHistoryForKey("ASSET:" + ASSET_ID)).thenReturn(iterator);
-        when(iterator.hasNext()).thenReturn(false);
+        when(iterator.iterator()).thenReturn(results);
+        when(results.hasNext()).thenReturn(false);
 
         assertThat(contract.getAssetHistory(ctx, ASSET_ID)).isEqualTo("[]");
     }

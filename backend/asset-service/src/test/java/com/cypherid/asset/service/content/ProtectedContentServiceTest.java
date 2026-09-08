@@ -78,9 +78,9 @@ class ProtectedContentServiceTest {
         keyEntity.setEncryptedKey(wrapped.data());
         keyEntity.setIv(wrapped.iv());
 
-        when(ipfsService.cat("QmTestCID")).thenReturn(encryptedBlob);
-        when(keyRepository.findById(CONTENT_ID)).thenReturn(Optional.of(keyEntity));
-        when(fabricClient.queryAsset(CONTENT_ID)).thenReturn(
+        lenient().when(ipfsService.cat("QmTestCID")).thenReturn(encryptedBlob);
+        lenient().when(keyRepository.findById(CONTENT_ID)).thenReturn(Optional.of(keyEntity));
+        lenient().when(fabricClient.queryAsset(CONTENT_ID)).thenReturn(
                 "{\"assetId\":\"" + CONTENT_ID + "\",\"ipfsHash\":\"QmTestCID\",\"classification\":\"SECRET\"}");
     }
 
