@@ -1,0 +1,111 @@
+# Demo profile — no Redis, no rate limiting
+server:
+  port: 8080
+
+spring:
+  config:
+    activate:
+      on-profile: demo
+
+  application:
+    name: api-gateway
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:3000"
+            allowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            allowedHeaders: ["*"]
+            allowCredentials: true
+            maxAge: 3600
+
+      default-filters:
+        - AddRequestHeader=X-Gateway-Version, 1.0
+
+      routes:
+        # Auth login — no JWT required
+        - id: auth-login
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/auth/login,/api/v1/auth/register
+
+        # Auth me/refresh/logout — JWT required
+        - id: auth-protected
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/auth/me,/api/v1/auth/refresh,/api/v1/auth/logout
+          filters:
+            - name: JwtAuthFilter
+
+        # Identity routes
+        - id: identity-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/identity/**,/api/v1/admin/organizations/**,/api/v1/admin/users/**
+          filters:
+            - name: JwtAuthFilter
+
+        # Access control routes
+        - id: access-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/access/**
+          filters:
+            - name: JwtAuthFilter
+
+        # Asset routes
+        - id: asset-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/assets/**,/api/v1/protected-content/**,/api/v1/exams/**,/api/v1/videos/**
+          filters:
+            - name: JwtAuthFilter
+
+        # Admin + security + notifications
+        - id: admin-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/admin/**,/api/v1/security/**,/api/v1/notifications/**
+          filters:
+            - name: JwtAuthFilter
+
+        # Audit routes
+        - id: audit-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/v1/audit/**
+          filters:
+            - name: JwtAuthFilter
+
+        # Health — no auth
+        - id: health
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/health/**
+
+# JWT
+jwt:
+  secret: CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!
+  expiration-seconds: 900
+  refresh-expiration-seconds: 86400
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.cypherid: DEBUG
+    org.springframework.cloud.gateway: INFO

@@ -4,6 +4,7 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -18,15 +19,8 @@ import java.util.UUID;
 
 /**
  * JwtService — issues, validates, and revokes JWT tokens.
- * <p>
- * Token structure:
- * - sub: DID (did:cypherid:0x...)
- * - org: organization (DRDO, BEL, etc.)
- * - roles: comma-separated roles (CLEARANCE_LEVEL_3,...)
- * - jti: unique token ID (for revocation tracking in Redis)
- * <p>
- * Refresh tokens stored as httpOnly cookies.
- * JWT blacklist maintained in Redis (keyed by jti).
+ * RedisTemplate is optional: in demo mode, DemoJwtService overrides all
+ * Redis-backed methods with in-memory alternatives.
  */
 @Service
 public class JwtService {
@@ -45,15 +39,16 @@ public class JwtService {
     @Value("${jwt.refresh-expiration-seconds:86400}")
     private long refreshExpirationSeconds;
 
-    private final RedisTemplate<String, String> redisTemplate;
+    @Autowired(required = false)
+    protected RedisTemplate<String, String> redisTemplate;
 
+    public JwtService() {}
+
+    @Autowired(required = false)
     public JwtService(RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
-    /**
-     * Issues a signed JWT access token for the given DID.
-     */
     public String issueAccessToken(String did, String org, List<String> roles) {
         String jti = UUID.randomUUID().toString();
         Instant now = Instant.now();
@@ -70,21 +65,15 @@ public class JwtService {
                 .compact();
     }
 
-    /**
-     * Issues a refresh token (opaque UUID stored in Redis).
-     */
     public String issueRefreshToken(String did) {
         String refreshToken = UUID.randomUUID().toString();
-        String key = REDIS_REFRESH_PREFIX + refreshToken;
-        redisTemplate.opsForValue().set(key, did, Duration.ofSeconds(refreshExpirationSeconds));
+        if (redisTemplate != null) {
+            String key = REDIS_REFRESH_PREFIX + refreshToken;
+            redisTemplate.opsForValue().set(key, did, Duration.ofSeconds(refreshExpirationSeconds));
+        }
         return refreshToken;
     }
 
-    /**
-     * Validates a JWT access token. Returns Claims if valid.
-     * Throws JwtException if invalid or expired.
-     * Throws RuntimeException if token is blacklisted.
-     */
     public Claims validateToken(String token) {
         Jws<Claims> claimsJws = Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -93,32 +82,30 @@ public class JwtService {
 
         Claims claims = claimsJws.getPayload();
 
-        // Check Redis blacklist
-        String jti = claims.getId();
-        if (jti != null && Boolean.TRUE.equals(redisTemplate.hasKey(REDIS_BLACKLIST_PREFIX + jti))) {
-            throw new RuntimeException("Token has been revoked");
+        if (redisTemplate != null) {
+            String jti = claims.getId();
+            if (jti != null && Boolean.TRUE.equals(redisTemplate.hasKey(REDIS_BLACKLIST_PREFIX + jti))) {
+                throw new RuntimeException("Token has been revoked");
+            }
         }
 
         return claims;
     }
 
-    /**
-     * Validates a refresh token. Returns the DID it belongs to.
-     */
     public String validateRefreshToken(String refreshToken) {
-        String key = REDIS_REFRESH_PREFIX + refreshToken;
-        String did = redisTemplate.opsForValue().get(key);
-        if (did == null) {
-            throw new RuntimeException("Invalid or expired refresh token");
+        if (redisTemplate != null) {
+            String key = REDIS_REFRESH_PREFIX + refreshToken;
+            String did = redisTemplate.opsForValue().get(key);
+            if (did == null) {
+                throw new RuntimeException("Invalid or expired refresh token");
+            }
+            return did;
         }
-        return did;
+        throw new RuntimeException("Redis not available in demo mode");
     }
 
-    /**
-     * Blacklists an access token by its JTI in Redis.
-     * Used during logout.
-     */
     public void revokeAccessToken(String token) {
+        if (redisTemplate == null) return;
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(getSigningKey())
@@ -141,16 +128,12 @@ public class JwtService {
         }
     }
 
-    /**
-     * Invalidates a refresh token.
-     */
     public void revokeRefreshToken(String refreshToken) {
-        redisTemplate.delete(REDIS_REFRESH_PREFIX + refreshToken);
+        if (redisTemplate != null) {
+            redisTemplate.delete(REDIS_REFRESH_PREFIX + refreshToken);
+        }
     }
 
-    /**
-     * Extracts DID from token without full validation (for logging purposes only).
-     */
     public String extractDid(String token) {
         try {
             return Jwts.parser()

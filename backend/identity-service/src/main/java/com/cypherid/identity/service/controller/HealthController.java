@@ -5,35 +5,29 @@ import com.cypherid.identity.service.repository.UserRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * HealthController — platform health aggregation
- * (docs/api/17_HEALTH_APIS.md).
- *
- * <p>GET /api/v1/health        → {status, components:{fabric, postgresql, redis, kafka, ipfs}}
- * <p>GET /api/v1/health/fabric → {peers, channelName, chaincodes}
- */
 @RestController
 @RequestMapping("/api/v1/health")
 public class HealthController {
 
     private final FabricGatewayClient fabricClient;
     private final UserRepository userRepository;
-    private final RedisTemplate<String, String> redisTemplate;
+
+    @Autowired(required = false)
+    private RedisTemplate<String, String> redisTemplate;
 
     @Value("${fabric.channel-name:cypherid-channel}")
     private String channelName;
 
     public HealthController(FabricGatewayClient fabricClient,
-                            UserRepository userRepository,
-                            RedisTemplate<String, String> redisTemplate) {
+                            UserRepository userRepository) {
         this.fabricClient = fabricClient;
         this.userRepository = userRepository;
-        this.redisTemplate = redisTemplate;
     }
 
     @GetMapping
@@ -42,11 +36,8 @@ public class HealthController {
         components.put("fabric", checkFabric());
         components.put("postgresql", checkPostgres());
         components.put("redis", checkRedis());
-        // Kafka / IPFS are owned by sibling services; report reachability hints.
-        components.put("kafka", Map.of("status", "UNKNOWN",
-                "note", "Owned by access/asset services; see their /actuator/health"));
-        components.put("ipfs", Map.of("status", "UNKNOWN",
-                "note", "Owned by asset-service; see its /actuator/health"));
+        components.put("kafka", Map.of("status", "UNKNOWN", "note", "Owned by access/asset services"));
+        components.put("ipfs", Map.of("status", "UNKNOWN", "note", "Owned by asset-service"));
 
         boolean up = components.values().stream()
                 .allMatch(c -> !"DOWN".equals(((Map<?, ?>) c).get("status")));
@@ -69,8 +60,6 @@ public class HealthController {
 
     private Map<String, Object> checkFabric() {
         try {
-            // Read-only probe: resolving a nonexistent DID must reach a peer.
-            // Any response (even "not found") proves the gateway path is live.
             fabricClient.resolveDID("did:cypherid:health:probe");
             return Map.of("status", "UP", "peers",
                     List.of(Map.of("name", "peer0.org1.cypherid.com", "status", "UP")));
@@ -80,7 +69,6 @@ public class HealthController {
                 return Map.of("status", "DOWN", "reason", "FABRIC_UNAVAILABLE",
                         "peers", List.of(Map.of("name", "peer0.org1.cypherid.com", "status", "DOWN")));
             }
-            // Peer reachable but probe DID absent → fabric path is live.
             return Map.of("status", "UP", "peers",
                     List.of(Map.of("name", "peer0.org1.cypherid.com", "status", "UP")));
         }
@@ -96,6 +84,9 @@ public class HealthController {
     }
 
     private Map<String, Object> checkRedis() {
+        if (redisTemplate == null) {
+            return Map.of("status", "DOWN", "reason", "Redis not configured (demo mode)");
+        }
         try {
             redisTemplate.getConnectionFactory().getConnection().ping();
             return Map.of("status", "UP");
