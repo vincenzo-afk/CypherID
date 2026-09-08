@@ -19,9 +19,8 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
-    // Hyperledger Fabric Gateway SDK (v2 client API: org.hyperledger.fabric.client.*)
+    // Hyperledger Fabric Gateway SDK
     implementation 'org.hyperledger.fabric:fabric-gateway:1.12.1'
-    // gRPC Netty channel (compile scope: shaded NettyChannelBuilder used by FabricConnectionConfig)
     implementation 'io.grpc:grpc-netty-shaded:1.61.1'
 
     // Bouncy Castle for cryptography (EC keys for DID)
@@ -30,6 +29,7 @@ dependencies {
 
     // Database
     runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'com.h2database:h2'
     implementation 'org.flywaydb:flyway-core'
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 
@@ -41,7 +41,6 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.mockito:mockito-core:5.11.0'
-    testImplementation 'com.h2database:h2'
 }
 
 springBoot {
