@@ -19,6 +19,7 @@ import org.hyperledger.fabric.client.GatewayException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +50,10 @@ public class ProtectedSessionService {
 
     private static final Type STRING_MAP_TYPE = new TypeToken<Map<String, String>>() {}.getType();
 
-    private final StringRedisTemplate redis;
+    @Autowired(required = false)
+    private StringRedisTemplate redis;
+    private final java.util.concurrent.ConcurrentHashMap<String, String> memoryStore = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.concurrent.ConcurrentHashMap<String, java.util.NavigableSet<String>> zSetStore = new java.util.concurrent.ConcurrentHashMap<>();
     private final ProtectedSessionRepository sessionRepository;
     private final SessionTokenService tokenService;
     private final WatermarkService watermarkService;
@@ -58,7 +62,7 @@ public class ProtectedSessionService {
     private final SecureRandom secureRandom = new SecureRandom();
     private final Gson gson = new Gson();
 
-    public ProtectedSessionService(StringRedisTemplate redis,
+    public ProtectedSessionService(@org.springframework.beans.factory.annotation.Autowired(required = false) StringRedisTemplate redis,
                                    ProtectedSessionRepository sessionRepository,
                                    SessionTokenService tokenService,
                                    WatermarkService watermarkService,
@@ -110,7 +114,7 @@ public class ProtectedSessionService {
         // Redis hot state
         SessionState state = new SessionState(sessionId, userDid, contentId, contentType, profile,
                 SessionStateMachine.STATE_AUTHORIZED, 0, 0, expiresAt.toString());
-        redis.opsForValue().set(key(sessionId), gson.toJson(state), Duration.ofMinutes(ttlMinutes));
+        if (redis != null) redis.opsForValue().set(key(sessionId), gson.toJson(state), Duration.ofMinutes(ttlMinutes)); else memoryStore.put(key(sessionId), gson.toJson(state));
 
         // Session token
         String token = tokenService.issue(sessionId, userDid, contentId, contentType, profile, expiresAt);
@@ -147,7 +151,7 @@ public class ProtectedSessionService {
      * Loads the live session state by ID (from Redis, falling back to DB).
      */
     public SessionState getState(String sessionId) {
-        String redisJson = redis.opsForValue().get(key(sessionId));
+        String redisJson = redis != null ? redis.opsForValue().get(key(sessionId)) : memoryStore.get(key(sessionId));
         if (redisJson != null) {
             SessionState state = gson.fromJson(redisJson, SessionState.class);
             if (isExpired(state)) {
@@ -163,13 +167,13 @@ public class ProtectedSessionService {
      * Updates session state in Redis (hot) and mirrors to PostgreSQL (audit).
      */
     public void updateState(String sessionId, String newState) {
-        String redisJson = redis.opsForValue().get(key(sessionId));
+        String redisJson = redis != null ? redis.opsForValue().get(key(sessionId)) : memoryStore.get(key(sessionId));
         if (redisJson == null) {
             throw new InvalidSessionException("SESSION_NOT_FOUND", "Session not found: " + sessionId);
         }
         SessionState current = gson.fromJson(redisJson, SessionState.class);
         SessionState updated = current.withState(newState);
-        redis.opsForValue().set(key(sessionId), gson.toJson(updated), remainingTtl(current));
+        if (redis != null) if (redis != null) redis.opsForValue().set(key(sessionId), gson.toJson(updated), remainingTtl(current)); else memoryStore.put(key(sessionId), gson.toJson(updated)); else memoryStore.put(key(sessionId), gson.toJson(updated));
 
         sessionRepository.findById(UUID.fromString(sessionId)).ifPresent(entity -> {
             entity.setState(newState);
@@ -181,11 +185,11 @@ public class ProtectedSessionService {
      * Records a delivered chunk index on the session (audit + progress).
      */
     public void recordChunkDelivery(String sessionId, int chunkIndex) {
-        String redisJson = redis.opsForValue().get(key(sessionId));
+        String redisJson = redis != null ? redis.opsForValue().get(key(sessionId)) : memoryStore.get(key(sessionId));
         if (redisJson == null) return;
         SessionState current = gson.fromJson(redisJson, SessionState.class);
         SessionState updated = current.withChunkCount(Math.max(current.chunkCount(), chunkIndex + 1));
-        redis.opsForValue().set(key(sessionId), gson.toJson(updated), remainingTtl(current));
+        if (redis != null) if (redis != null) redis.opsForValue().set(key(sessionId), gson.toJson(updated), remainingTtl(current)); else memoryStore.put(key(sessionId), gson.toJson(updated)); else memoryStore.put(key(sessionId), gson.toJson(updated));
 
         sessionRepository.findById(UUID.fromString(sessionId)).ifPresent(entity -> {
             entity.setChunkCount(updated.chunkCount());
@@ -203,7 +207,7 @@ public class ProtectedSessionService {
         if (callerDid != null && !callerDid.equals(state.userDID())) {
             throw new ForbiddenException("SESSION_NOT_OWNED", "Caller does not own session: " + sessionId);
         }
-        redis.delete(key(sessionId));
+        if (redis != null) redis.delete(key(sessionId)); else memoryStore.remove(key(sessionId));
 
         sessionRepository.findById(UUID.fromString(sessionId)).ifPresent(entity -> {
             entity.setState(SessionStateMachine.STATE_EXPIRED);
@@ -226,9 +230,9 @@ public class ProtectedSessionService {
         String zkey = eventWindowKey(sessionId, eventType);
         long now = System.currentTimeMillis();
         long windowStart = now - (long) config.getEventWindowMinutes() * 60_000;
-        redis.opsForZSet().removeRangeByScore(zkey, 0, windowStart);
-        redis.opsForZSet().add(zkey, String.valueOf(now), now);
-        Long count = redis.opsForZSet().size(zkey);
+        if (redis != null) redis.opsForZSet().removeRangeByScore(zkey, 0, windowStart);
+        if (redis != null) redis.opsForZSet().add(zkey, String.valueOf(now), now);
+        Long count = redis != null ? redis.opsForZSet().size(zkey) : 0L;
         return count == null ? 0 : count.intValue();
     }
 
@@ -239,8 +243,8 @@ public class ProtectedSessionService {
         String zkey = chunkLogKey(sessionId);
         long now = System.currentTimeMillis();
         long windowStart = now - 60_000;
-        redis.opsForZSet().removeRangeByScore(zkey, 0, windowStart);
-        Long count = redis.opsForZSet().size(zkey);
+        if (redis != null) redis.opsForZSet().removeRangeByScore(zkey, 0, windowStart);
+        Long count = redis != null ? redis.opsForZSet().size(zkey) : 0L;
         return count != null && count >= config.getChunkRateLimitPerMinute();
     }
 
@@ -250,7 +254,7 @@ public class ProtectedSessionService {
     public void logChunkDelivery(String sessionId) {
         String zkey = chunkLogKey(sessionId);
         long now = System.currentTimeMillis();
-        redis.opsForZSet().add(zkey, String.valueOf(now), now);
+        if (redis != null) redis.opsForZSet().add(zkey, String.valueOf(now), now);
     }
 
     // =========================================================================
@@ -282,12 +286,12 @@ public class ProtectedSessionService {
                 entity.getChunkCount(), 0, entity.getExpiresAt().toString());
 
         long remainingSeconds = Math.max(1, Duration.between(Instant.now(), entity.getExpiresAt()).getSeconds());
-        redis.opsForValue().set(key(sessionId), gson.toJson(state), Duration.ofSeconds(remainingSeconds));
+        if (redis != null) redis.opsForValue().set(key(sessionId), gson.toJson(state), Duration.ofSeconds(remainingSeconds)); else memoryStore.put(key(sessionId), gson.toJson(state));
         return state;
     }
 
     private void expireSession(String sessionId) {
-        redis.delete(key(sessionId));
+        if (redis != null) redis.delete(key(sessionId)); else memoryStore.remove(key(sessionId));
         sessionRepository.findById(UUID.fromString(sessionId)).ifPresent(entity -> {
             entity.setState(SessionStateMachine.STATE_EXPIRED);
             entity.setClosedAt(Instant.now());

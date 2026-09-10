@@ -1,0 +1,57 @@
+server:
+  port: 8083
+spring:
+  config:
+    activate:
+      on-profile: demo
+  application:
+    name: asset-service
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+  datasource:
+    url: jdbc:h2:mem:cypherid_asset_demo;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration-demo
+    baseline-on-migrate: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.kafka.autoconfigure.KafkaAutoConfiguration
+
+asset:
+  master-key: CypherID-Asset-Master-Key-2026!!
+  kafka:
+    topic: asset-events
+    security-alerts-topic: security-alerts
+
+access-service:
+  url: http://localhost:8082
+
+protection:
+  session-jwt-secret: CypherID-Protected-Session-Secret-2026!!
+  session-token-issuer: cypherid-protected-session
+  chunk-size-bytes: 65536
+  chunk-rate-limit-per-minute: 120
+  event-window-minutes: 5
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+logging:
+  level:
+    com.cypherid: DEBUG

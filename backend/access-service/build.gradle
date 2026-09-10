@@ -13,10 +13,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.hyperledger.fabric:fabric-gateway:1.12.1'
-    // gRPC Netty channel (compile scope: shaded NettyChannelBuilder used by FabricConnectionConfig)
     implementation 'io.grpc:grpc-netty-shaded:1.61.1'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
     runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'com.h2database:h2'
     implementation 'org.flywaydb:flyway-core'
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
     implementation 'com.google.code.gson:gson:2.10.1'
@@ -24,7 +24,6 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.mockito:mockito-core:5.11.0'
-    testImplementation 'com.h2database:h2'
 }
 
 springBoot {
