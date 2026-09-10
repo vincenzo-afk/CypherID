@@ -2,6 +2,7 @@ package com.cypherid.audit.service.repository;
 
 import com.cypherid.audit.service.domain.AuditEventEntity;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Repository;
 /** Filtered audit-log queries (docs/api/07_AUDIT_APIS.md). */
 @Repository
 public interface AuditEventRepository extends JpaRepository<AuditEventEntity, UUID> {
+
+    Optional<AuditEventEntity> findBySourceEventId(String sourceEventId);
 
     @Query("SELECT e FROM AuditEventEntity e WHERE "
             + "(:did IS NULL OR e.did = :did) AND "

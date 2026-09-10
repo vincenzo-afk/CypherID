@@ -30,7 +30,7 @@ class AuditEventConsumerTest {
     @BeforeEach
     void setUp() {
         consumer = new AuditEventConsumer(auditService);
-        lenient().when(auditService.ingest(anyString(), any(), any(), any(), any(), any(), any(), any()))
+        lenient().when(auditService.ingest(anyString(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new AuditEventEntity());
     }
 
@@ -44,7 +44,7 @@ class AuditEventConsumerTest {
 
         verify(auditService).ingest(eq("ACCESS_DECISION"), eq("did:cypherid:user1"), eq("DRDO-DOC-007"),
                 eq("READ"), eq("GRANTED"), eq("ALL_POLICIES_SATISFIED"), eq("tx-abc"),
-                eq(Instant.parse("2026-01-01T00:00:00Z")));
+                eq(Instant.parse("2026-01-01T00:00:00Z")), isNull());
     }
 
     @Test
@@ -60,7 +60,7 @@ class AuditEventConsumerTest {
         consumer.onSecurityAlert(payload);
 
         verify(auditService).ingest(eq("SECURITY_ALERT"), eq("did:cypherid:user1"), eq("asset-1"),
-                isNull(), eq("INFO"), eq("anomaly detected"), isNull(), any());
+                isNull(), eq("INFO"), eq("anomaly detected"), isNull(), any(), isNull());
     }
 
     @Test
@@ -70,7 +70,7 @@ class AuditEventConsumerTest {
         consumer.onProtectionEvent(payload);
 
         verify(auditService).ingest(eq("PROTECTION_EVENT"), eq("did:cypherid:user1"), eq("asset-2"),
-                eq("SCREENSHOT_ATTEMPT"), eq("INFO"), isNull(), isNull(), any());
+                eq("SCREENSHOT_ATTEMPT"), eq("INFO"), isNull(), isNull(), any(), isNull());
     }
 
     @Test
@@ -79,6 +79,31 @@ class AuditEventConsumerTest {
 
         assertDoesNotThrow(() -> consumer.onSecurityAlert(payload));
         verify(auditService).ingest(eq("SECURITY_ALERT"), eq("did:cypherid:user1"), isNull(),
-                isNull(), eq("INFO"), isNull(), isNull(), any());
+                isNull(), eq("INFO"), isNull(), isNull(), any(), isNull());
+    }
+
+    @Test
+    void onAssetEvent_wellFormedPayload_ingestsAsAssetEvent() {
+        String payload = "{\"did\":\"did:cypherid:owner1\",\"resourceId\":\"ASSET-1\","
+                + "\"action\":\"ASSET_MINTED\",\"decision\":\"INFO\",\"reason\":\"classification=SECRET\","
+                + "\"txHash\":\"tx-mint\",\"timestamp\":\"2026-01-01T00:00:00Z\"}";
+
+        consumer.onAssetEvent(payload);
+
+        verify(auditService).ingest(eq("ASSET_EVENT"), eq("did:cypherid:owner1"), eq("ASSET-1"),
+                eq("ASSET_MINTED"), eq("INFO"), eq("classification=SECRET"), eq("tx-mint"),
+                eq(Instant.parse("2026-01-01T00:00:00Z")), isNull());
+    }
+
+    @Test
+    void onAccessLog_withEventId_passesEventIdThroughForDedup() {
+        String payload = "{\"eventId\":\"evt-123\",\"did\":\"did:cypherid:user1\",\"resourceId\":\"DRDO-DOC-007\","
+                + "\"action\":\"READ\",\"decision\":\"GRANTED\",\"timestamp\":\"2026-01-01T00:00:00Z\"}";
+
+        consumer.onAccessLog(payload);
+
+        verify(auditService).ingest(eq("ACCESS_DECISION"), eq("did:cypherid:user1"), eq("DRDO-DOC-007"),
+                eq("READ"), eq("GRANTED"), isNull(), isNull(),
+                eq(Instant.parse("2026-01-01T00:00:00Z")), eq("evt-123"));
     }
 }

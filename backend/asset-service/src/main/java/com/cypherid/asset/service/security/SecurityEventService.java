@@ -78,7 +78,10 @@ public class SecurityEventService {
         entity.setSeverity(severity);
         eventRepository.save(entity);
 
-        // 2. Publish HIGH severity alerts (best-effort)
+        // 2. Publish to Kafka (best-effort): every event → protection-events
+        //    (durable audit trail), HIGH/CRITICAL additionally → security-alerts
+        //    (real-time alerting).
+        alertProducer.publishProtectionEvent(sessionId, userDid, eventType, severity, timestamp);
         if ("HIGH".equals(severity) || "CRITICAL".equals(severity)) {
             alertProducer.publishSecurityAlert(sessionId, userDid, eventType, severity, timestamp);
         }

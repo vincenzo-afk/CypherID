@@ -60,8 +60,14 @@ fabric:
 # JWT
 jwt:
   secret: ${JWT_SECRET:CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!}
-  expiration-seconds: 900
+  expiration-seconds: 18000       # 5 hours — see note below
   refresh-expiration-seconds: 86400
+
+# Refresh-token cookie. MUST be true (default) behind real HTTPS — only
+# override to false for a plain-HTTP local/demo deployment (see
+# AuthController for why: browsers drop Secure cookies on non-HTTPS origins).
+cookie:
+  secure: ${COOKIE_SECURE:true}
 
 # Actuator
 management:

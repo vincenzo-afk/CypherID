@@ -127,7 +127,20 @@ public class AuthenticationService {
         String clearance = user.getClearanceLevel();
         if (clearance == null) clearance = "UNCLASSIFIED";
 
+        // NOTE: "SUPER_ADMIN" and "ORG_ADMIN" are administrative roles, not
+        // classification levels, but they are stored in the same clearance_level
+        // column (docs/access-control/02_RBAC_MODEL.md) and must be recognized
+        // here — every *AdminController / requireAdminRole check across the
+        // services does roles.contains("ADMIN") / roles.contains("SUPER_ADMIN")
+        // against exactly this list. Before this fix neither value was ever
+        // produced, so no account — however configured — could reach any admin
+        // endpoint. Admins also get full clearance so classified content checks
+        // never block administrative actions.
         return switch (clearance) {
+            case "SUPER_ADMIN"  -> List.of("SUPER_ADMIN", "ORG_ADMIN", "TOP_SECRET", "SECRET", "CONFIDENTIAL",
+                                            "UNCLASSIFIED", "CLEARANCE_LEVEL_5", "CLEARANCE_LEVEL_4");
+            case "ORG_ADMIN"    -> List.of("ORG_ADMIN", "TOP_SECRET", "SECRET", "CONFIDENTIAL", "UNCLASSIFIED",
+                                            "CLEARANCE_LEVEL_4");
             case "TOP_SECRET"   -> List.of("TOP_SECRET", "SECRET", "CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_4");
             case "SECRET"       -> List.of("SECRET", "CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_3");
             case "CONFIDENTIAL" -> List.of("CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_2");

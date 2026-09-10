@@ -13,7 +13,11 @@ import org.springframework.stereotype.Component;
 
 /**
  * AuditEventConsumer — consumes access-logs, security-alerts,
- * protection-events (and identity/asset events) into the audit store.
+ * protection-events, and asset-events into the audit store.
+ * <p>
+ * Every listener passes m.get("eventId") through to AuditService.ingest —
+ * Kafka delivery is at-least-once here, so a redelivered message must
+ * dedupe against the row it already created, not insert a second one.
  */
 @Component
 public class AuditEventConsumer {
@@ -35,7 +39,7 @@ public class AuditEventConsumer {
             auditService.ingest("ACCESS_DECISION",
                     m.get("did"), m.get("resourceId"), m.get("action"),
                     m.get("decision"), m.get("reason"), m.get("txHash"),
-                    parseTime(m.get("timestamp")));
+                    parseTime(m.get("timestamp")), m.get("eventId"));
         } catch (Exception e) {
             logger.warn("Failed to ingest access-log: {}", e.getMessage());
         }
@@ -48,7 +52,7 @@ public class AuditEventConsumer {
             auditService.ingest("SECURITY_ALERT",
                     m.get("did"), m.get("resourceId"), m.get("action"),
                     m.getOrDefault("decision", "INFO"), m.get("reason"),
-                    m.get("txHash"), parseTime(m.get("timestamp")));
+                    m.get("txHash"), parseTime(m.get("timestamp")), m.get("eventId"));
         } catch (Exception e) {
             logger.warn("Failed to ingest security-alert: {}", e.getMessage());
         }
@@ -61,9 +65,50 @@ public class AuditEventConsumer {
             auditService.ingest("PROTECTION_EVENT",
                     m.get("did"), m.get("resourceId"), m.get("action"),
                     m.getOrDefault("decision", "INFO"), m.get("reason"),
-                    m.get("txHash"), parseTime(m.get("timestamp")));
+                    m.get("txHash"), parseTime(m.get("timestamp")), m.get("eventId"));
         } catch (Exception e) {
             logger.warn("Failed to ingest protection-event: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * asset-events has had a live producer (AssetEventProducer — mint /
+     * transfer / burn) since the beginning, but nothing here ever consumed
+     * it — every asset lifecycle event was published and then silently
+     * dropped, never reaching the audit trail. Mirror image of the
+     * protection-events gap fixed earlier (that one was consumer-without-
+     * producer; this one was producer-without-consumer).
+     */
+    @KafkaListener(topics = "asset-events", groupId = "audit-service")
+    public void onAssetEvent(String payload) {
+        try {
+            Map<String, String> m = gson.fromJson(payload, MAP_TYPE);
+            auditService.ingest("ASSET_EVENT",
+                    m.get("did"), m.get("resourceId"), m.get("action"),
+                    m.getOrDefault("decision", "INFO"), m.get("reason"),
+                    m.get("txHash"), parseTime(m.get("timestamp")), m.get("eventId"));
+        } catch (Exception e) {
+            logger.warn("Failed to ingest asset-event: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * identity-service has depended on spring-kafka and had producer config
+     * since the beginning, but never actually published anything — DID
+     * creation, suspension, revocation, and admin role assignment were all
+     * invisible to the audit trail. Same gap as asset-events, fixed the
+     * same way.
+     */
+    @KafkaListener(topics = "identity-events", groupId = "audit-service")
+    public void onIdentityEvent(String payload) {
+        try {
+            Map<String, String> m = gson.fromJson(payload, MAP_TYPE);
+            auditService.ingest("IDENTITY_EVENT",
+                    m.get("did"), m.get("resourceId"), m.get("action"),
+                    m.getOrDefault("decision", "INFO"), m.get("reason"),
+                    m.get("txHash"), parseTime(m.get("timestamp")), m.get("eventId"));
+        } catch (Exception e) {
+            logger.warn("Failed to ingest identity-event: {}", e.getMessage());
         }
     }
 

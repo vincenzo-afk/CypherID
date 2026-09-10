@@ -408,6 +408,11 @@ services:
       REDIS_HOST: redis
       KAFKA_BOOTSTRAP: kafka:29092
       JWT_SECRET: ${JWT_SECRET:-CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!}
+      # This compose stack serves plain HTTP (nginx:80, gateway:8080, no TLS
+      # termination anywhere) — a Secure cookie would never reach the server
+      # on the return trip, silently breaking /auth/refresh after 15 min.
+      # Set COOKIE_SECURE=true in your env once this sits behind real HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       FABRIC_CHANNEL: ${FABRIC_CHANNEL:-cypherid-channel}
       FABRIC_ORG_MSP: ${FABRIC_ORG_MSP:-Org1MSP}
       FABRIC_PEER_ENDPOINT: ${FABRIC_PEER_ENDPOINT:-peer0.org1.cypherid.com:7051}
@@ -417,8 +422,18 @@ services:
       FABRIC_ADMIN_CERT: /config/fabric/admin/signcerts/admin.pem
     volumes:
       - ./infrastructure/fabric/config:/config/fabric:ro
-    ports:
-      - "8081:8081"
+    # NOT published to the host: identity-svc trusts the X-User-DID /
+    # X-User-Roles headers on every request with no signature of its own —
+    # JwtAuthFilter in api-gateway is the ONLY thing that verifies the JWT
+    # and sets those headers. Publishing this port let anyone bypass the
+    # gateway entirely and self-declare X-User-Roles: SUPER_ADMIN with zero
+    # credentials. Only api-gateway (8080) should ever be reachable from
+    # outside the Docker network. Uncomment below for local debugging only,
+    # and never on a host with a public/LAN-reachable IP.
+    # ports:
+    #   - "8081:8081"
+    expose:
+      - "8081"
     depends_on:
       postgres:
         condition: service_healthy
@@ -456,8 +471,12 @@ services:
       FABRIC_ADMIN_CERT: /config/fabric/admin/signcerts/admin.pem
     volumes:
       - ./infrastructure/fabric/config:/config/fabric:ro
-    ports:
-      - "8082:8082"
+    # NOT published to the host — see identity-svc's note above; same
+    # bypass risk applies to every backend service, not just identity.
+    # ports:
+    #   - "8082:8082"
+    expose:
+      - "8082"
     depends_on:
       postgres:
         condition: service_healthy
@@ -498,8 +517,11 @@ services:
       FABRIC_ADMIN_CERT: /config/fabric/admin/signcerts/admin.pem
     volumes:
       - ./infrastructure/fabric/config:/config/fabric:ro
-    ports:
-      - "8083:8083"
+    # NOT published to the host — see identity-svc's note above.
+    # ports:
+    #   - "8083:8083"
+    expose:
+      - "8083"
     depends_on:
       postgres:
         condition: service_healthy
@@ -531,8 +553,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-cypherid}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cypherid_secret}
       KAFKA_BOOTSTRAP: kafka:29092
-    ports:
-      - "8084:8084"
+    # NOT published to the host — see identity-svc's note above.
+    # ports:
+    #   - "8084:8084"
+    expose:
+      - "8084"
     depends_on:
       postgres:
         condition: service_healthy

@@ -27,6 +27,15 @@ public class AuthController {
 
     private final AuthenticationService authService;
 
+    // Secure defaults to true (correct for any real HTTPS deployment) but is
+    // overridden to false in docker-compose.yml for this project's plain-HTTP
+    // local/demo setup — with Secure=true, browsers silently refuse to send
+    // the cookie back over http://, so /auth/refresh always 401s once the
+    // 15-minute access token expires and every session hard-dies with no way
+    // to recover except logging in again.
+    @org.springframework.beans.factory.annotation.Value("${cookie.secure:true}")
+    private boolean cookieSecure;
+
     public AuthController(AuthenticationService authService) {
         this.authService = authService;
     }
@@ -45,8 +54,9 @@ public class AuthController {
         // Set refresh token as httpOnly cookie
         Cookie refreshCookie = new Cookie("refresh_token", result.refreshToken());
         refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(true);  // HTTPS only in production
+        refreshCookie.setSecure(cookieSecure);
         refreshCookie.setPath("/api/v1/auth/refresh");
+        refreshCookie.setAttribute("SameSite", "Strict");
         refreshCookie.setMaxAge((int) result.refreshExpiresIn());
         response.addCookie(refreshCookie);
 
@@ -71,8 +81,9 @@ public class AuthController {
         // Rotate refresh token
         Cookie refreshCookie = new Cookie("refresh_token", result.refreshToken());
         refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(true);
+        refreshCookie.setSecure(cookieSecure);
         refreshCookie.setPath("/api/v1/auth/refresh");
+        refreshCookie.setAttribute("SameSite", "Strict");
         refreshCookie.setMaxAge((int) result.refreshExpiresIn());
         response.addCookie(refreshCookie);
 
@@ -102,8 +113,9 @@ public class AuthController {
         // Clear refresh cookie
         Cookie clearCookie = new Cookie("refresh_token", "");
         clearCookie.setHttpOnly(true);
-        clearCookie.setSecure(true);
+        clearCookie.setSecure(cookieSecure);
         clearCookie.setPath("/api/v1/auth/refresh");
+        clearCookie.setAttribute("SameSite", "Strict");
         clearCookie.setMaxAge(0);
         response.addCookie(clearCookie);
 

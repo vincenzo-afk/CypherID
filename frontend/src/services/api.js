@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const BASE = import.meta.env.VITE_API_URL || '';
+const TOKEN_KEY = 'cypherid_access_token';
 
 export const apiClient = axios.create({
   baseURL: BASE,
@@ -8,10 +9,92 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('cypherid_access_token');
+  const token = localStorage.getItem(TOKEN_KEY);
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// ─── Global failure handling ────────────────────────────────────────────────
+// Previously there was none: a 401 on any call past initial page load just
+// surfaced as a raw rejected promise with nothing to recover it, 403/404/5xx
+// had no consistent shape for pages to show the user, and network failures
+// (no response at all — offline, gateway down, timeout) weren't
+// distinguished from anything else. This adds, uniformly, for every call
+// made through `api`:
+//   - one-shot silent refresh-and-retry on a 401 (the access token now lasts
+//     5h, but the refresh token lasts 24h — this makes the session actually
+//     span that full 24h transparently instead of hard-dying at 5h with no
+//     recovery)
+//   - a hard redirect to /login only when refresh itself fails (i.e. the
+//     session is genuinely over)
+//   - a `error.friendlyMessage` on every rejected request, so pages can
+//     show something readable without each reimplementing status-code
+//     mapping
+let refreshInFlight = null;
+
+function friendlyMessage(status, serverMessage) {
+  switch (status) {
+    case 401:
+      return 'Your session has expired. Please log in again.';
+    case 403:
+      return "You don't have permission to do that.";
+    case 404:
+      return 'That could not be found.';
+    default:
+      if (status >= 500) return 'Something went wrong on the server. Please try again.';
+      return serverMessage || 'The request could not be completed.';
+  }
+}
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const { config, response } = error;
+
+    // No response at all — network failure, timeout, CORS, gateway down.
+    if (!response) {
+      error.friendlyMessage = 'Network error — check your connection and try again.';
+      return Promise.reject(error);
+    }
+
+    const status = response.status;
+    const url = config?.url || '';
+    // Never try to "refresh" our way out of a failed login or a failed
+    // refresh itself — that's not recoverable and would just loop.
+    const isAuthBootstrapCall = url.includes('/api/v1/auth/login') || url.includes('/api/v1/auth/refresh');
+
+    if (status === 401 && !isAuthBootstrapCall && config && !config._retry) {
+      config._retry = true;
+      try {
+        // De-duplicate concurrent 401s (e.g. several widgets fetching at
+        // once) into a single /refresh call instead of one each.
+        if (!refreshInFlight) {
+          refreshInFlight = apiClient
+            .post('/api/v1/auth/refresh')
+            .then((r) => r.data)
+            .finally(() => { refreshInFlight = null; });
+        }
+        const data = await refreshInFlight;
+        localStorage.setItem(TOKEN_KEY, data.accessToken);
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${data.accessToken}`;
+        return apiClient(config);
+      } catch (refreshError) {
+        localStorage.removeItem(TOKEN_KEY);
+        try {
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.location.assign('/login');
+          }
+        } catch { /* navigation unavailable (e.g. test environment) — token is already cleared */ }
+        refreshError.friendlyMessage = friendlyMessage(401);
+        return Promise.reject(refreshError);
+      }
+    }
+
+    error.friendlyMessage = friendlyMessage(status, response.data?.message);
+    return Promise.reject(error);
+  }
+);
 
 // Paths follow docs/api/* (source of truth per docs/AGENTS.md).
 const newNonce = () => {

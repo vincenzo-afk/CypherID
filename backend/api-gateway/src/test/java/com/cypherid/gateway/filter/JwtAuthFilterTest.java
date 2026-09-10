@@ -146,4 +146,37 @@ class JwtAuthFilterTest {
         assertEquals("CLEARANCE_LEVEL_3,ADMIN", headers.getFirst("X-User-Roles"));
         assertNotNull(headers.getFirst("X-Request-ID"));
     }
+
+    @Test
+    void clientSuppliedTrustHeaders_areStrippedNotAppended() {
+        // A client sends its own X-User-DID/X-User-Roles claiming SUPER_ADMIN,
+        // alongside a legitimate token for an unprivileged user. If the filter
+        // ever appended instead of replacing, or forgot to strip client
+        // input, a downstream service reading getFirst("X-User-Roles") could
+        // end up trusting the attacker-supplied value instead of the JWT's.
+        String token = validToken("did:cypherid:user1", "DRDO", List.of("CLEARANCE_LEVEL_1"), Duration.ofMinutes(15));
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/admin/organizations")
+                .header("Authorization", "Bearer " + token)
+                .header("X-User-DID", "did:cypherid:admin:root")
+                .header("X-User-Roles", "SUPER_ADMIN")
+                .header("X-User-Org", "SPOOFED")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
+        when(chain.filter(any())).thenAnswer(inv -> {
+            forwarded.set(inv.getArgument(0));
+            return Mono.empty();
+        });
+
+        GatewayFilter filter = jwtAuthFilter.apply(new JwtAuthFilter.Config());
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        assertNotNull(forwarded.get());
+        var headers = forwarded.get().getRequest().getHeaders();
+        assertEquals(1, headers.get("X-User-DID").size(), "must not contain both the spoofed and real value");
+        assertEquals("did:cypherid:user1", headers.getFirst("X-User-DID"));
+        assertEquals("DRDO", headers.getFirst("X-User-Org"));
+        assertEquals("CLEARANCE_LEVEL_1", headers.getFirst("X-User-Roles"));
+    }
 }

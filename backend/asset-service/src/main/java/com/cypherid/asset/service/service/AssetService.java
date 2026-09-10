@@ -112,10 +112,10 @@ public class AssetService {
             keyRepository.save(keyEntity);
 
             // 6. Feed the event pipeline (best-effort)
-            eventProducer.publishAssetEvent("ASSET_MINTED", assetId, ownerDid,
-                    classification, cid, timestamp);
-
             String txHash = mintOutcome.txId();  // real on-chain transaction ID
+            eventProducer.publishAssetEvent("ASSET_MINTED", assetId, ownerDid,
+                    classification, cid, txHash, timestamp);
+
             logger.info("Asset minted: {} owner: {} cid: {} class: {} (tx: {})",
                     assetId, ownerDid, cid, classification, txHash);
 
@@ -203,10 +203,11 @@ public class AssetService {
             throw new RuntimeException("Asset transfer failed: " + e.getMessage(), e);
         }
 
-        eventProducer.publishAssetEvent("ASSET_TRANSFERRED", assetId, request.toDID(),
-                null, null, timestamp);
-
         String txHash = outcome.txId();  // real on-chain transaction ID
+
+        eventProducer.publishAssetEvent("ASSET_TRANSFERRED", assetId, request.toDID(),
+                null, null, txHash, timestamp);
+
         logger.info("Asset {} transferred from {} to {} (tx: {})", assetId, fromDid, request.toDID(), txHash);
 
         return new TransferResponse(txHash, request.toDID());
@@ -248,10 +249,11 @@ public class AssetService {
         }
         keyRepository.deleteById(assetId);
 
-        eventProducer.publishAssetEvent("ASSET_BURNED", assetId, ownerDid,
-                asset.classification(), asset.ipfsHash(), timestamp);
-
         String txHash = outcome.txId();  // real on-chain transaction ID
+
+        eventProducer.publishAssetEvent("ASSET_BURNED", assetId, ownerDid,
+                asset.classification(), asset.ipfsHash(), txHash, timestamp);
+
         logger.info("Asset burned: {} by owner: {} (tx: {})", assetId, ownerDid, txHash);
 
         return new BurnResponse(txHash, "BURNED");

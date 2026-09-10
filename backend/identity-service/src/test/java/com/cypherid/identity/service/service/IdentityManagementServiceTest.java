@@ -7,6 +7,7 @@ import com.cypherid.identity.service.dto.CreateDIDResponse;
 import com.cypherid.identity.service.dto.ResolveDIDResponse;
 import com.cypherid.identity.service.dto.TxHashResponse;
 import com.cypherid.identity.service.fabric.FabricGatewayClient;
+import com.cypherid.identity.service.kafka.IdentityEventProducer;
 import com.cypherid.identity.service.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,13 +44,16 @@ class IdentityManagementServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private IdentityEventProducer eventProducer;
+
     private IdentityManagementService service;
 
     private KeyPair testKeyPair;
 
     @BeforeEach
     void setUp() throws Exception {
-        service = new IdentityManagementService(fabricClient, didKeyService, userRepository, passwordEncoder);
+        service = new IdentityManagementService(fabricClient, didKeyService, userRepository, passwordEncoder, eventProducer);
         testKeyPair = KeyPairGenerator.getInstance("EC").generateKeyPair();
     }
 

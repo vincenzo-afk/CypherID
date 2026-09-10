@@ -38,16 +38,19 @@ public class IdentityManagementService {
     private final DIDKeyService didKeyService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.cypherid.identity.service.kafka.IdentityEventProducer eventProducer;
     private final Gson gson = new Gson();
 
     public IdentityManagementService(FabricGatewayClient fabricClient,
                                       DIDKeyService didKeyService,
                                       UserRepository userRepository,
-                                      PasswordEncoder passwordEncoder) {
+                                      PasswordEncoder passwordEncoder,
+                                      com.cypherid.identity.service.kafka.IdentityEventProducer eventProducer) {
         this.fabricClient    = fabricClient;
         this.didKeyService   = didKeyService;
         this.userRepository  = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.eventProducer   = eventProducer;
     }
 
     /**
@@ -100,6 +103,9 @@ public class IdentityManagementService {
             user.setStatus("ACTIVE");
             userRepository.save(user);
 
+            eventProducer.publishIdentityEvent("DID_CREATED", did, null,
+                    "org=" + request.organization(), txHash, timestamp);
+
             logger.info("DID created successfully: {} for org: {}", did, request.organization());
 
             return new CreateDIDResponse(did, didDocumentJson, txHash, encodedPrivateKey);
@@ -143,6 +149,7 @@ public class IdentityManagementService {
                 user.setStatus("SUSPENDED");
                 userRepository.save(user);
             });
+            eventProducer.publishIdentityEvent("DID_SUSPENDED", did, adminDid, reason, txHash, timestamp);
             logger.info("DID suspended: {} by admin: {}", did, adminDid);
             return new TxHashResponse(txHash, "SUSPENDED");
 
@@ -167,6 +174,7 @@ public class IdentityManagementService {
                 user.setStatus("REVOKED");
                 userRepository.save(user);
             });
+            eventProducer.publishIdentityEvent("DID_REVOKED", did, adminDid, reason, txHash, timestamp);
             logger.info("DID revoked: {} by admin: {}", did, adminDid);
             return new TxHashResponse(txHash, "REVOKED");
 

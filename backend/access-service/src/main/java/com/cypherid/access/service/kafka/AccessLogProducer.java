@@ -37,6 +37,7 @@ public class AccessLogProducer {
                                  String decision, String reason, String timestamp) {
         try {
             Map<String, Object> event = Map.of(
+                    "eventId", java.util.UUID.randomUUID().toString(),
                     "eventType", "ACCESS_LOG",
                     "did", did,
                     "resourceId", resourceId,

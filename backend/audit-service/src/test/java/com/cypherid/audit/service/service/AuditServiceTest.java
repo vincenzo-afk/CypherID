@@ -109,4 +109,58 @@ class AuditServiceTest {
                 "VIEW", "INFO", null, null, Instant.now()));
         verify(repository).save(any(AuditEventEntity.class));
     }
+
+    // ─── dedup (Kafka at-least-once redelivery) ────────────────────────────
+
+    @Test
+    void ingest_duplicateSourceEventId_returnsExistingRowWithoutSaving() {
+        AuditEventEntity existing = new AuditEventEntity();
+        existing.setSourceEventId("evt-123");
+        when(repository.findBySourceEventId("evt-123")).thenReturn(java.util.Optional.of(existing));
+
+        AuditEventEntity result = service.ingest("ACCESS_DECISION", "did:cypherid:user1", "DRDO-DOC-007",
+                "READ", "GRANTED", null, null, Instant.now(), "evt-123");
+
+        assertSame(existing, result);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void ingest_newSourceEventId_savesWithSourceEventIdSet() {
+        when(repository.findBySourceEventId("evt-456")).thenReturn(java.util.Optional.empty());
+        when(repository.save(any(AuditEventEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AuditEventEntity saved = service.ingest("ACCESS_DECISION", "did:cypherid:user1", "DRDO-DOC-007",
+                "READ", "GRANTED", null, null, Instant.now(), "evt-456");
+
+        assertEquals("evt-456", saved.getSourceEventId());
+        verify(repository).save(any(AuditEventEntity.class));
+    }
+
+    @Test
+    void ingest_raceOnUniqueConstraint_returnsWinnerInsteadOfThrowing() {
+        AuditEventEntity winner = new AuditEventEntity();
+        winner.setSourceEventId("evt-race");
+        when(repository.findBySourceEventId("evt-race"))
+                .thenReturn(java.util.Optional.empty())   // pre-check: not there yet
+                .thenReturn(java.util.Optional.of(winner)); // after losing the race: it exists now
+        when(repository.save(any(AuditEventEntity.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key"));
+
+        AuditEventEntity result = service.ingest("ACCESS_DECISION", "did:cypherid:user1", "DRDO-DOC-007",
+                "READ", "GRANTED", null, null, Instant.now(), "evt-race");
+
+        assertSame(winner, result);
+    }
+
+    @Test
+    void ingest_blankSourceEventId_treatedAsNoDedupKey() {
+        when(repository.save(any(AuditEventEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AuditEventEntity saved = service.ingest("ACCESS_DECISION", "did:cypherid:user1", "DRDO-DOC-007",
+                "READ", "GRANTED", null, null, Instant.now(), "  ");
+
+        assertNull(saved.getSourceEventId());
+        verify(repository, never()).findBySourceEventId(anyString());
+    }
 }

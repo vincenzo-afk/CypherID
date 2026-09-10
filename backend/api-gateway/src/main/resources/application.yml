@@ -38,6 +38,24 @@ spring:
                 redis-rate-limiter.burstCapacity: 20
                 key-resolver: "#{@ipKeyResolver}"
 
+        # Public DID enrollment (self-service KYC registration, RegisterPage.jsx
+        # -> POST /api/v1/identity/did). No JWT required: a brand-new user has
+        # no token yet — that's the whole point of this endpoint. Must precede
+        # the generic identity-service route below (first match wins), or the
+        # JwtAuthFilter there swallows this path too and registration 401s for
+        # everyone, permanently, with no way to create a first account.
+        - id: identity-register
+          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
+          predicates:
+            - Path=/api/v1/identity/did
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@ipKeyResolver}"
+
         # Identity routes
         - id: identity-service
           uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
@@ -120,11 +138,15 @@ spring:
                 key-resolver: "#{@didKeyResolver}"
 
         # Identity admin routes (org registry + role assignment) — must
-        # precede the generic admin route below (first match wins).
+        # precede the generic admin route below (first match wins). NOTE:
+        # Path= with multiple patterns must be a single comma-separated
+        # string with NO space after the comma — Spring's PathPatternParser
+        # requires every pattern to start with "/", and a leading space
+        # (from "X, Y") breaks that for the second pattern.
         - id: identity-admin
           uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
           predicates:
-            - Path=/api/v1/admin/organizations/**, /api/v1/admin/users/**
+            - Path=/api/v1/admin/organizations/**,/api/v1/admin/users/**
           filters:
             - name: JwtAuthFilter
             - name: RequestRateLimiter
@@ -137,7 +159,7 @@ spring:
         - id: admin-service
           uri: http://${ASSET_SVC_HOST:asset-svc}:8083
           predicates:
-            - Path=/api/v1/admin/**, /api/v1/security/**
+            - Path=/api/v1/admin/**,/api/v1/security/**
           filters:
             - name: JwtAuthFilter
             - name: RequestRateLimiter
@@ -179,9 +201,15 @@ spring:
             - Path=/api/v1/health/**
 
 # JWT Configuration
+# NOTE: only jwt.secret is actually used here — the gateway validates the
+# token's own embedded exp claim, it doesn't independently enforce a max
+# age. expiration-seconds/refresh-expiration-seconds below are kept only to
+# mirror identity-service's config for readability; the real values that
+# matter are set in identity-service/src/main/resources/application.yml
+# (JwtService is what actually issues tokens and sets their expiry).
 jwt:
   secret: ${JWT_SECRET:CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!}
-  expiration-seconds: 900
+  expiration-seconds: 18000       # 5 hours — must match identity-service
   refresh-expiration-seconds: 86400
 
 # Actuator

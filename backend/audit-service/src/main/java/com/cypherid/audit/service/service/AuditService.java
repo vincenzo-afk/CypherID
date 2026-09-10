@@ -43,10 +43,34 @@ public class AuditService {
 
     /**
      * Persists an ingested event and pushes it to WebSocket subscribers.
+     * Delegates to the deduplicating overload with no dedup key (always
+     * inserts) — kept for any caller that doesn't have a sourceEventId yet.
      */
     public AuditEventEntity ingest(String eventType, String did, String resourceId,
                                   String action, String decision, String reason,
                                   String txHash, Instant eventTime) {
+        return ingest(eventType, did, resourceId, action, decision, reason, txHash, eventTime, null);
+    }
+
+    /**
+     * Same as above, but deduplicates on sourceEventId first. Kafka delivery
+     * here is at-least-once (no producer idempotence / transactional
+     * semantics configured), so a rebalance or consumer retry WILL redeliver
+     * a message — without this check, every redelivery became a second
+     * audit row. A unique DB constraint (V2__Source_Event_Dedup.sql) backs
+     * this up in case of a race between the check and the insert.
+     */
+    public AuditEventEntity ingest(String eventType, String did, String resourceId,
+                                  String action, String decision, String reason,
+                                  String txHash, Instant eventTime, String sourceEventId) {
+        if (sourceEventId != null && !sourceEventId.isBlank()) {
+            var existing = repository.findBySourceEventId(sourceEventId);
+            if (existing.isPresent()) {
+                logger.debug("Duplicate delivery ignored: sourceEventId={}", sourceEventId);
+                return existing.get();
+            }
+        }
+
         AuditEventEntity entity = new AuditEventEntity();
         entity.setEventType(eventType);
         entity.setDid(did);
@@ -55,8 +79,20 @@ public class AuditService {
         entity.setDecision(decision);
         entity.setReason(reason);
         entity.setTxHash(txHash);
+        entity.setSourceEventId(sourceEventId == null || sourceEventId.isBlank() ? null : sourceEventId);
         entity.setEventTime(eventTime != null ? eventTime : Instant.now());
-        AuditEventEntity saved = repository.save(entity);
+
+        AuditEventEntity saved;
+        try {
+            saved = repository.save(entity);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Lost a race with another delivery of the same event between the
+            // check above and this insert — fetch and return what actually won.
+            saved = repository.findBySourceEventId(sourceEventId)
+                    .orElseThrow(() -> e);
+            logger.debug("Duplicate delivery raced the unique constraint: sourceEventId={}", sourceEventId);
+            return saved;
+        }
 
         // Best-effort realtime push (never fails ingestion)
         try {

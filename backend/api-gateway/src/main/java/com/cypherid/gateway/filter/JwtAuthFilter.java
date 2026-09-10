@@ -68,12 +68,26 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Co
                     return onUnauthorized(exchange, "JWT missing subject (DID)");
                 }
 
-                // Forward claims as headers to downstream services
+                // Forward claims as headers to downstream services. Downstream
+                // services trust these headers with NO signature check of their
+                // own — this filter is the only thing standing between a client
+                // and self-declaring "X-User-Roles: SUPER_ADMIN". So: explicitly
+                // strip anything the client sent under these names first, then
+                // set (not just add) the verified values. Relying on the client
+                // never having sent them, or on .header() happening to replace
+                // rather than append, is exactly the kind of assumption that
+                // turns into a privilege-escalation bug later.
                 ServerHttpRequest mutatedRequest = request.mutate()
-                        .header("X-User-DID",   did)
-                        .header("X-User-Org",   org   != null ? org   : "")
-                        .header("X-User-Roles", roles != null ? roles : "")
-                        .header("X-Request-ID", java.util.UUID.randomUUID().toString())
+                        .headers(httpHeaders -> {
+                            httpHeaders.remove("X-User-DID");
+                            httpHeaders.remove("X-User-Org");
+                            httpHeaders.remove("X-User-Roles");
+                            httpHeaders.remove("X-Request-ID");
+                            httpHeaders.set("X-User-DID", did);
+                            httpHeaders.set("X-User-Org", org != null ? org : "");
+                            httpHeaders.set("X-User-Roles", roles != null ? roles : "");
+                            httpHeaders.set("X-Request-ID", java.util.UUID.randomUUID().toString());
+                        })
                         .build();
 
                 logger.debug("JWT validated for DID: {} org: {}", did, org);

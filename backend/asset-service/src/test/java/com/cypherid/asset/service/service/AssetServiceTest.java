@@ -80,7 +80,7 @@ class AssetServiceTest {
         verify(fabricClient).mintAsset(anyString(), eq(OWNER), eq("QmTestCID"), eq("SECRET"), eq("POLICY-1"),
                 eq("drdo-doc.txt"), eq("text/plain"), anyString(), anyString(), anyString());
         verify(keyRepository).save(any());
-        verify(eventProducer).publishAssetEvent(eq("ASSET_MINTED"), anyString(), eq(OWNER), eq("SECRET"), eq("QmTestCID"), anyString());
+        verify(eventProducer).publishAssetEvent(eq("ASSET_MINTED"), anyString(), eq(OWNER), eq("SECRET"), eq("QmTestCID"), anyString(), anyString());
     }
 
     @Test

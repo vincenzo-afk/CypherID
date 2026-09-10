@@ -34,9 +34,12 @@ public class AdminController {
     private static final Map<String, Map<String, Object>> ORG_REGISTRY = new ConcurrentHashMap<>();
 
     private final UserRepository userRepository;
+    private final com.cypherid.identity.service.kafka.IdentityEventProducer eventProducer;
 
-    public AdminController(UserRepository userRepository) {
+    public AdminController(UserRepository userRepository,
+                           com.cypherid.identity.service.kafka.IdentityEventProducer eventProducer) {
         this.userRepository = userRepository;
+        this.eventProducer = eventProducer;
     }
 
     /**
@@ -93,6 +96,8 @@ public class AdminController {
             user.setOrganization(request.organization());
         }
         userRepository.save(user);
+        eventProducer.publishIdentityEvent("ROLE_ASSIGNED", did, adminDid,
+                "newRole=" + request.role(), null, Instant.now().toString());
         logger.info("Role assigned: {} → {} by {}", did, request.role(), adminDid);
         return ResponseEntity.ok(Map.of(
                 "did", did,

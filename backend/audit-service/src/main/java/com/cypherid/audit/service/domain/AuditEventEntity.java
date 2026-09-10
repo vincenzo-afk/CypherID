@@ -39,6 +39,12 @@ public class AuditEventEntity {
     @Column(name = "tx_hash", length = 255)
     private String txHash;
 
+    // Nullable dedup key from the producer (see V2__Source_Event_Dedup.sql) —
+    // Kafka delivery is at-least-once, so a redelivered message must not
+    // become a second row.
+    @Column(name = "source_event_id", length = 64, unique = true)
+    private String sourceEventId;
+
     @Column(name = "event_time", nullable = false)
     private Instant eventTime = Instant.now();
 
@@ -53,6 +59,7 @@ public class AuditEventEntity {
     public String getDecision() { return decision; }
     public String getReason() { return reason; }
     public String getTxHash() { return txHash; }
+    public String getSourceEventId() { return sourceEventId; }
     public Instant getEventTime() { return eventTime; }
     public Instant getCreatedAt() { return createdAt; }
 
@@ -63,5 +70,6 @@ public class AuditEventEntity {
     public void setDecision(String v) { this.decision = v; }
     public void setReason(String v) { this.reason = v; }
     public void setTxHash(String v) { this.txHash = v; }
+    public void setSourceEventId(String v) { this.sourceEventId = v; }
     public void setEventTime(Instant v) { this.eventTime = v; }
 }
