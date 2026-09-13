@@ -3,6 +3,7 @@ package com.cypherid.gateway.config;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import reactor.core.publisher.Mono;
 
@@ -33,8 +34,11 @@ public class RateLimiterConfig {
 
     /**
      * IP-based key resolver for unauthenticated endpoints (e.g., /api/v1/auth/login).
+     * Marked @Primary so the gateway's default KeyResolver autowiring is unambiguous;
+     * per-route args ({@code key-resolver: "#{@...}"}) still select explicitly.
      */
     @Bean
+    @Primary
     public KeyResolver ipKeyResolver() {
         return exchange -> Mono.just("ip:" + getClientIp(exchange));
     }

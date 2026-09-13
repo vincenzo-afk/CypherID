@@ -4,6 +4,13 @@ server:
 management:
   server:
     port: ${MANAGEMENT_PORT:8090}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
 
 spring:
   application:
@@ -30,6 +37,23 @@ spring:
         - AddResponseHeader=X-Request-ID, ${spring.application.name}
 
       routes:
+        # Auth me/refresh/logout — JWT required (mirrors application-demo.yml).
+        # /auth/me reads the gateway-injected X-User-DID header downstream; routed
+        # through the public auth-login route it arrives header-less and 403s with
+        # MissingRequestHeaderException. Must precede the auth-login route below
+        # (first match wins).
+        - id: auth-protected
+          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
+          predicates:
+            - Path=/api/v1/auth/me,/api/v1/auth/refresh,/api/v1/auth/logout
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@didKeyResolver}"
+
         # Auth routes — no JWT required
         - id: auth-login
           uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
@@ -220,16 +244,6 @@ jwt:
   secret: ${JWT_SECRET:CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!}
   expiration-seconds: 18000       # 5 hours — must match identity-service
   refresh-expiration-seconds: 86400
-
-# Actuator
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: always
 
 logging:
   level:

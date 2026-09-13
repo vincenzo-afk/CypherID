@@ -109,10 +109,11 @@ Application: &ApplicationDefaults
     LifecycleEndorsement:
       Type: ImplicitMeta
       Rule: "MAJORITY Endorsement"
-    # All 3 orgs must endorse every transaction (docs/infrastructure/03)
+    # Channel-level default; the strict all-3-orgs AND endorsement is
+    # enforced per-chaincode at approval/commit (see deploy-chaincode.sh).
     Endorsement:
       Type: ImplicitMeta
-      Rule: "AND('Org1MSP.peer','Org2MSP.peer','Org3MSP.peer')"
+      Rule: "MAJORITY Endorsement"
 
 Orderer: &OrdererDefaults
   OrdererType: etcdraft
