@@ -1,6 +1,10 @@
 server:
   port: 8080
 
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8090}
+
 spring:
   application:
     name: api-gateway
@@ -193,6 +197,11 @@ spring:
                 redis-rate-limiter.replenishRate: 20
                 redis-rate-limiter.burstCapacity: 40
                 key-resolver: "#{@didKeyResolver}"
+
+        - id: audit-websocket
+          uri: ws://${AUDIT_SVC_HOST:audit-svc}:8084
+          predicates:
+            - Path=/ws/audit
 
         # Health check — no auth
         - id: health
