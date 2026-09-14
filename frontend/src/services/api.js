@@ -5,7 +5,8 @@ const TOKEN_KEY = 'cypherid_access_token';
 
 export const apiClient = axios.create({
   baseURL: BASE,
-  timeout: 15000
+  timeout: 15000,
+  withCredentials: true
 });
 
 apiClient.interceptors.request.use((config) => {

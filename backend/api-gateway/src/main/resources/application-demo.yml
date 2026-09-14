@@ -34,7 +34,7 @@ spring:
         - id: auth-login
           uri: http://localhost:8081
           predicates:
-            - Path=/api/v1/auth/login,/api/v1/auth/register
+            - Path=/api/v1/auth/login
 
         # Auth me/refresh/logout — JWT required
         - id: auth-protected

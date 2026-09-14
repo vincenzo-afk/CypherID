@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Component;
  * dedupe against the row it already created, not insert a second one.
  */
 @Component
+@Profile("!demo")
 public class AuditEventConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(AuditEventConsumer.class);

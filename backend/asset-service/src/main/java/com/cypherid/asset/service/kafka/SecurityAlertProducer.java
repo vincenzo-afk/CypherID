@@ -3,6 +3,7 @@ package com.cypherid.asset.service.kafka;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -21,15 +22,15 @@ public class SecurityAlertProducer {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityAlertProducer.class);
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    @Autowired(required = false)
+    private KafkaTemplate<String, String> kafkaTemplate;
     private final String alertsTopic;
     private final String protectionEventsTopic;
     private final Gson gson = new Gson();
 
-    public SecurityAlertProducer(KafkaTemplate<String, String> kafkaTemplate,
+    public SecurityAlertProducer(
                                  @Value("${asset.kafka.security-alerts-topic:security-alerts}") String alertsTopic,
                                  @Value("${asset.kafka.protection-events-topic:protection-events}") String protectionEventsTopic) {
-        this.kafkaTemplate = kafkaTemplate;
         this.alertsTopic = alertsTopic;
         this.protectionEventsTopic = protectionEventsTopic;
     }
@@ -68,7 +69,11 @@ public class SecurityAlertProducer {
     }
 
     private void send(String topic, String sessionId, String userDid, String eventType,
-                      String severity, String timestamp) {
+                       String severity, String timestamp) {
+        if (kafkaTemplate == null) {
+            logger.debug("Kafka unavailable, skipping security event publish");
+            return;
+        }
         try {
             Map<String, Object> event = Map.of(
                     "eventId", java.util.UUID.randomUUID().toString(),

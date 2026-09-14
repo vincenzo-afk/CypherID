@@ -30,6 +30,7 @@ export default function App() {
         <Route path="/protected/exam/:sessionId" element={<AuthGuard><ProtectedExamViewer /></AuthGuard>} />
         <Route path="/protected/video/:sessionId" element={<AuthGuard><ProtectedVideoViewer /></AuthGuard>} />
         <Route path="/" element={<Navigate to="/wallet" replace />} />
+        <Route path="*" element={<Navigate to="/wallet" replace />} />
       </Routes>
     </BrowserRouter>
   );

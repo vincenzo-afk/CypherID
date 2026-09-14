@@ -1,7 +1,7 @@
 # CypherID
 Blockchain-Based Secure Platform for Identity, Access Control, and Digital Asset Management
 
-**PS: SIH26125 | Organization: Bharat Electronics Limited | Theme: Blockchain & Cybersecurity**
+** https://github.com/vincenzo-afk/CypherID.git | Theme: Blockchain & Cybersecurity**
 
 > "Your Identity. Your Control. Immutable Trust."
 
