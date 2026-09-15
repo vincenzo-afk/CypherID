@@ -2,10 +2,12 @@ package com.cypherid.identity.service.service;
 
 import com.cypherid.identity.service.domain.User;
 import com.cypherid.identity.service.dto.AuthResult;
+import com.cypherid.identity.service.exception.AuthenticationException;
 import com.cypherid.identity.service.repository.UserRepository;
 import com.cypherid.identity.service.security.JwtService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -49,23 +51,27 @@ public class AuthenticationService {
         User user = userRepository.findByDid(did)
                 .orElseThrow(() -> {
                     logger.warn("Login failed: DID not found: {}", did);
-                    return new RuntimeException("Invalid credentials");
+                    return new AuthenticationException(HttpStatus.UNAUTHORIZED,
+                            "INVALID_CREDENTIALS", "Invalid credentials");
                 });
 
         // Check DID status
         if ("REVOKED".equals(user.getStatus())) {
             logger.warn("Login denied: DID REVOKED: {}", did);
-            throw new RuntimeException("DID is revoked");
+            throw new AuthenticationException(HttpStatus.FORBIDDEN,
+                    "DID_REVOKED", "DID is revoked");
         }
         if ("SUSPENDED".equals(user.getStatus())) {
             logger.warn("Login denied: DID SUSPENDED: {}", did);
-            throw new RuntimeException("DID is suspended");
+            throw new AuthenticationException(HttpStatus.FORBIDDEN,
+                    "DID_SUSPENDED", "DID is suspended");
         }
 
         // Verify password
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             logger.warn("Login failed: wrong password for DID: {}", did);
-            throw new RuntimeException("Invalid credentials");
+            throw new AuthenticationException(HttpStatus.UNAUTHORIZED,
+                    "INVALID_CREDENTIALS", "Invalid credentials");
         }
 
         // Build roles list from clearance level
@@ -90,11 +96,13 @@ public class AuthenticationService {
         String did = jwtService.validateRefreshToken(refreshToken);
 
         User user = userRepository.findByDid(did)
-                .orElseThrow(() -> new RuntimeException("User not found for refresh token"));
+                .orElseThrow(() -> new AuthenticationException(HttpStatus.UNAUTHORIZED,
+                        "INVALID_TOKEN", "User not found for refresh token"));
 
         if (!"ACTIVE".equals(user.getStatus())) {
             jwtService.revokeRefreshToken(refreshToken);
-            throw new RuntimeException("DID is no longer active");
+            throw new AuthenticationException(HttpStatus.FORBIDDEN,
+                    "DID_INACTIVE", "DID is no longer active");
         }
 
         List<String> roles = buildRoles(user);

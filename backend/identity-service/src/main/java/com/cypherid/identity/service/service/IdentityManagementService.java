@@ -133,8 +133,29 @@ public class IdentityManagementService {
                     extractStatus(didDocJson),
                     Instant.now().toString());
         } catch (GatewayException e) {
-            logger.error("DID resolution failed for {} — fabric unavailable: {}", did, e.getMessage());
-            throw new FabricUnavailableException("Blockchain network unavailable", e);
+            // Fabric down: degrade to the local record instead of failing.
+            // The bootstrap admin (and any DID created while Fabric was up,
+            // whose metadata was persisted) stays resolvable when running
+            // without the Phase-2 network. Unknown DIDs still 503.
+            logger.warn("DID resolution for {} falling back to local store — fabric unavailable: {}",
+                    did, e.getMessage());
+            return userRepository.findByDid(did)
+                    .map(user -> new ResolveDIDResponse(
+                            gson.toJson(Map.of(
+                                    "did", user.getDid(),
+                                    "organization", user.getOrganization() != null
+                                            ? user.getOrganization() : "",
+                                    "department", user.getDepartment() != null
+                                            ? user.getDepartment() : "",
+                                    "clearanceLevel", user.getClearanceLevel() != null
+                                            ? user.getClearanceLevel() : "",
+                                    "status", user.getStatus() != null
+                                            ? user.getStatus() : "UNKNOWN",
+                                    "source", "local-fallback")),
+                            user.getStatus() != null ? user.getStatus() : "UNKNOWN",
+                            Instant.now().toString()))
+                    .orElseThrow(() -> new FabricUnavailableException(
+                            "Blockchain network unavailable", e));
         } catch (Exception e) {
             logger.error("DID resolution failed for {}: {}", did, e.getMessage());
             throw new RuntimeException("DID not found: " + did);

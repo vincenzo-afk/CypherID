@@ -36,6 +36,18 @@ public class GlobalExceptionHandler {
                         "Blockchain network unavailable: " + e.getMessage(), null));
     }
 
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthentication(AuthenticationException e) {
+        return ResponseEntity.status(e.getStatus())
+                .body(new ApiError(e.getCode(), e.getMessage(), null));
+    }
+
+    @ExceptionHandler(io.jsonwebtoken.JwtException.class)
+    public ResponseEntity<ApiError> handleJwt(io.jsonwebtoken.JwtException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiError("INVALID_TOKEN", "Invalid or expired token", null));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException e) {
         Map<String, Object> details = new LinkedHashMap<>();
