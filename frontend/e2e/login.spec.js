@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 
 /**
  * AuthGuard e2e — verifies unauthenticated visitors to a guarded route
