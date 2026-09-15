@@ -147,15 +147,17 @@ export const api = {
   emergencyOverride: (body) => apiClient.post('/api/v1/access/emergency-override', body).then((r) => r.data),
 
   // Assets (docs/api/06_ASSET_APIS.md)
+  // 3-org endorsement can take 15-60s — mutating calls get a long timeout so
+  // the UI doesn't report failure for commits that actually land.
   uploadAsset: (formData) =>
-    apiClient.post('/api/v1/assets', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data),
+    apiClient.post('/api/v1/assets', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }).then((r) => r.data),
   listAssets: (ownerDID) =>
     apiClient.get('/api/v1/assets', { params: { ownerDID } }).then((r) => r.data),
   getAsset: (assetId) => apiClient.get(`/api/v1/assets/${encodeURIComponent(assetId)}`).then((r) => r.data),
   transferAsset: (assetId, body) =>
-    apiClient.post(`/api/v1/assets/${encodeURIComponent(assetId)}/transfer`, body).then((r) => r.data),
+    apiClient.post(`/api/v1/assets/${encodeURIComponent(assetId)}/transfer`, body, { timeout: 120000 }).then((r) => r.data),
   burnAsset: (assetId, body) =>
-    apiClient.delete(`/api/v1/assets/${encodeURIComponent(assetId)}`, { data: body }).then((r) => r.data),
+    apiClient.delete(`/api/v1/assets/${encodeURIComponent(assetId)}`, { data: body, timeout: 120000 }).then((r) => r.data),
   assetHistory: (assetId) => apiClient.get(`/api/v1/assets/${encodeURIComponent(assetId)}/history`).then((r) => r.data),
 
   // Protected sessions / content (docs/api/09,10)

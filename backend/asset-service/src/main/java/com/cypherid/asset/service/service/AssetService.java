@@ -1,5 +1,6 @@
 package com.cypherid.asset.service.service;
 
+import com.cypherid.asset.service.controller.NotificationController;
 import com.cypherid.asset.service.crypto.EncryptionService;
 import com.cypherid.asset.service.domain.AssetEncryptionKeyEntity;
 import com.cypherid.asset.service.dto.*;
@@ -115,6 +116,8 @@ public class AssetService {
             String txHash = mintOutcome.txId();  // real on-chain transaction ID
             eventProducer.publishAssetEvent("ASSET_MINTED", assetId, ownerDid,
                     classification, cid, txHash, timestamp);
+            NotificationController.publish(ownerDid, "ASSET_MINTED",
+                    "Asset " + assetId + " minted on-chain (tx " + shortTx(txHash) + ").");
 
             logger.info("Asset minted: {} owner: {} cid: {} class: {} (tx: {})",
                     assetId, ownerDid, cid, classification, txHash);
@@ -207,10 +210,19 @@ public class AssetService {
 
         eventProducer.publishAssetEvent("ASSET_TRANSFERRED", assetId, request.toDID(),
                 null, null, txHash, timestamp);
+        NotificationController.publish(fromDid, "ASSET_TRANSFERRED_OUT",
+                "Asset " + assetId + " transferred to " + request.toDID() + " (tx " + shortTx(txHash) + ").");
+        NotificationController.publish(request.toDID(), "ASSET_TRANSFERRED_IN",
+                "Asset " + assetId + " transferred to you by " + fromDid + " (tx " + shortTx(txHash) + ").");
 
         logger.info("Asset {} transferred from {} to {} (tx: {})", assetId, fromDid, request.toDID(), txHash);
 
         return new TransferResponse(txHash, request.toDID());
+    }
+
+    /** First 8 hex chars for short human-readable tx references. */
+    private static String shortTx(String txHash) {
+        return txHash != null && txHash.length() > 8 ? txHash.substring(0, 8) : txHash;
     }
 
     // =========================================================================
@@ -253,6 +265,8 @@ public class AssetService {
 
         eventProducer.publishAssetEvent("ASSET_BURNED", assetId, ownerDid,
                 asset.classification(), asset.ipfsHash(), txHash, timestamp);
+        NotificationController.publish(ownerDid, "ASSET_BURNED",
+                "Asset " + assetId + " burned on-chain (tx " + shortTx(txHash) + ").");
 
         logger.info("Asset burned: {} by owner: {} (tx: {})", assetId, ownerDid, txHash);
 
@@ -278,6 +292,9 @@ public class AssetService {
 
             if (rawHistory != null) {
                 for (Map<String, Object> modification : rawHistory) {
+                    // Chaincode history can contain null/tombstone entries
+                    // (e.g. deletes) — skip them instead of NPEing.
+                    if (modification == null) continue;
                     String txHash = String.valueOf(modification.getOrDefault("txId", ""));
                     String timestamp = modification.get("timestamp") != null
                             ? modification.get("timestamp").toString() : "";

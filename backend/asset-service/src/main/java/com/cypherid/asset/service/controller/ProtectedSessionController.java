@@ -2,6 +2,7 @@ package com.cypherid.asset.service.controller;
 
 import com.cypherid.asset.service.client.AccessEvaluationClient;
 import com.cypherid.asset.service.dto.IssueSessionResponse;
+import com.cypherid.asset.service.exception.ForbiddenException;
 import com.cypherid.asset.service.service.AssetService;
 import com.cypherid.asset.service.session.ProtectedSessionService;
 import org.slf4j.Logger;
@@ -62,11 +63,19 @@ public class ProtectedSessionController {
                     assetId, e.getMessage());
         }
         if (!isOwner) {
-            accessEvaluationClient.requireAccess(userDid, roles, assetId, "READ");
+            try {
+                accessEvaluationClient.requireAccess(userDid, roles, assetId, "READ");
+            } catch (ForbiddenException denied) {
+                NotificationController.publish(userDid, "ACCESS_DENIED",
+                        "View denied for " + assetId + ": " + denied.getMessage());
+                throw denied;
+            }
         }
 
         // 2. Issue the protected session
         IssueSessionResponse response = sessionService.issueSession(userDid, assetId, "DOCUMENT");
+        NotificationController.publish(userDid, "SESSION_ISSUED",
+                "Protected session opened for " + assetId + " (" + response.sessionId() + ").");
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

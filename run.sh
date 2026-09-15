@@ -197,6 +197,21 @@ if [ "$DO_NGROK" -eq 1 ]; then
     echo "    API (public):    ${PUBLIC_URL:-<failed>}/api/v1/health  (nginx proxies /api/* to gateway)"
     echo "  ngrok dashboard:   http://localhost:4040"
     echo "================================================================"
+    if [ -n "$PUBLIC_URL" ]; then
+      # Persist + verify on every run: PUBLIC_URL.txt (gitignored) is the
+      # machine-readable record; run.md's header block is refreshed too.
+      printf '%s\n' "$PUBLIC_URL" > PUBLIC_URL.txt
+      UI_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$PUBLIC_URL/" 2>/dev/null)
+      API_JSON=$(curl -s --max-time 15 "$PUBLIC_URL/api/v1/health" 2>/dev/null | head -c 120)
+      echo "[run] public UI check: HTTP $UI_CODE | public API check: $API_JSON"
+      if [ "$UI_CODE" = "200" ]; then
+        STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        sed -i "s|^Public URL (ngrok.*|Public URL (ngrok, verified $STAMP): $PUBLIC_URL|" run.md 2>/dev/null || true
+        echo "[run] run.md public URL refreshed ($STAMP)"
+      else
+        echo "[run] WARNING: public URL not serving UI (HTTP $UI_CODE)"
+      fi
+    fi
   fi
 else
   echo "[run] ngrok skipped (--no-ngrok). Local URLs: frontend http://localhost:3000, backend http://localhost:8080"

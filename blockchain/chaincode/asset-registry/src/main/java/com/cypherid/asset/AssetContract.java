@@ -265,13 +265,15 @@ public class AssetContract implements ContractInterface {
 
         try (QueryResultsIterator<KeyModification> iterator = stub.getHistoryForKey(KEY_ASSET + assetId)) {
             for (KeyModification modification : iterator) {
-                history.add(new java.util.LinkedHashMap<>() {{
-                    put("txId",      modification.getTxId());
-                    put("timestamp", modification.getTimestamp() != null
+                // Plain map (NOT double-brace init): Gson serializes anonymous
+                // subclasses as null, which used to yield [null, null].
+                java.util.Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                entry.put("txId",      modification.getTxId());
+                entry.put("timestamp", modification.getTimestamp() != null
                                      ? modification.getTimestamp().toString() : null);
-                    put("isDelete",  modification.isDeleted());
-                    put("value",     modification.getStringValue());
-                }});
+                entry.put("isDelete",  modification.isDeleted());
+                entry.put("value",     modification.getStringValue());
+                history.add(entry);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to get asset history: " + e.getMessage(), e);

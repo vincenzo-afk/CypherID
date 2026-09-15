@@ -10,7 +10,7 @@ export default defineConfig({
   testDir: './e2e',
   // live-sweep hits the real stack; login/a11y use route mocks — all run on
   // the machine's Chrome (no Playwright browser download needed).
-  testMatch: ['live-sweep.spec.js', 'login.spec.js', 'a11y.spec.js'],
+  testMatch: ['live-sweep.spec.js', 'login.spec.js', 'a11y.spec.js', 'asset-flow.spec.js'],
   fullyParallel: false,
   workers: 1,
   retries: 0,
