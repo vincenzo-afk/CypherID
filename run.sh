@@ -1,33 +1,44 @@
 #!/usr/bin/env bash
-# CypherID one-shot runner — frontend + backend, no demo data, no Fabric.
+# CypherID one-shot runner — frontend + backend, no demo data.
 # Usage:
-#   bash run.sh [--no-build] [--no-ngrok] [--ngrok-token <token>]
+#   bash run.sh [--no-build] [--no-ngrok] [--ngrok-token <token>] [--with-fabric]
 #
 # What it does:
 #   1. Moves caches to E: (npm) and ensures E:\tools / E:\docker-data exist
 #   2. Starts Docker Desktop if the daemon is unreachable
 #   3. docker compose up -d --build  (infra + 5 Java services + frontend)
 #      Skipped with --no-build (just starts existing containers)
+#   3b. With --with-fabric: the REAL 3-org Fabric network (orderer + 3 peers
+#      + channel + 3 Java ccaas chaincodes). First run adds ~30-45 min.
+#      WITHOUT it the stack still runs; /api/v1/health reports DEGRADED with
+#      FABRIC_UNAVAILABLE and chaincode features degrade (wallet falls back to
+#      local store, assets/policy calls 503). See run.md §10b.
 #   4. Waits for gateway health http://localhost:8080/api/v1/health
 #      and frontend http://localhost:3000 (HTTP 200)
-#   5. Opens ngrok tunnels for frontend (:3000) and gateway (:8080)
-#      and prints the public URLs. Needs NGROK_AUTHTOKEN env var
+#   5. Opens one ngrok tunnel for the frontend (:3000, /api/* proxied to the
+#      gateway) and prints the public URL. Needs NGROK_AUTHTOKEN env var
 #      (get one free at https://dashboard.ngrok.com/get-started/your-authtoken)
 #      or pass --ngrok-token. Skipped with --no-ngrok.
 #
 # Requirements: Docker Desktop (Windows), project checked out on E:
 # (C: is full — everything heavy lives on E: by design).
+# For --with-fabric additionally: JDK 21 (for the gradlew chaincode builds),
+# git-bash (MSYS_NO_PATHCONV is exported by the scripts themselves), and a
+# working python3 for deterministic ccaas packaging (the script falls back to
+# C:\Program Files\Python312\python.exe on Windows).
 
 set -u
 
 # ── args ──────────────────────────────────────────────────────────────
 DO_BUILD=1
 DO_NGROK=1
+DO_FABRIC=0
 NGROK_TOKEN="${NGROK_AUTHTOKEN:-}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --no-build) DO_BUILD=0; shift ;;
     --no-ngrok) DO_NGROK=0; shift ;;
+    --with-fabric) DO_FABRIC=1; shift ;;
     --ngrok-token) NGROK_TOKEN="$2"; shift 2 ;;
     *) echo "Unknown arg: $1 (see header comments)"; exit 1 ;;
   esac
@@ -64,6 +75,67 @@ if [ "$DO_BUILD" -eq 1 ]; then
 else
   echo "[run] starting existing containers (no build)..."
   docker compose up -d || exit 1
+fi
+
+# ── 3b. Real Fabric network (opt-in via --with-fabric) ────────────────
+if [ "$DO_FABRIC" -eq 1 ]; then
+  export MSYS_NO_PATHCONV=1
+  # Fabric 2.5 CLI tools (cryptogen/configtxgen/peer/osnadmin). Repo scripts
+  # expect them on PATH. Reuse $FABRIC_TOOLS_DIR or download once.
+  FABRIC_TOOLS_DIR="${FABRIC_TOOLS_DIR:-/e/tools/fabric}"
+  if ! command -v cryptogen >/dev/null 2>&1; then
+    if [ -x "$FABRIC_TOOLS_DIR/bin/cryptogen" ]; then
+      export PATH="$FABRIC_TOOLS_DIR/bin:$PATH"
+    else
+      echo "[run] downloading Fabric 2.5.9 tools to $FABRIC_TOOLS_DIR ..."
+      mkdir -p "$FABRIC_TOOLS_DIR"
+      case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) FAB_TGZ="hyperledger-fabric-windows-amd64-2.5.9.tar.gz" ;;
+        Linux*)               FAB_TGZ="hyperledger-fabric-linux-amd64-2.5.9.tar.gz" ;;
+        Darwin*)              FAB_TGZ="hyperledger-fabric-darwin-amd64-2.5.9.tar.gz" ;;
+        *) echo "[run] unknown OS for fabric tools download; install cryptogen+configtxgen manually"; exit 1 ;;
+      esac
+      curl -sL --max-time 300 -o "$FABRIC_TOOLS_DIR/fabric-tools.tar.gz" \
+        "https://github.com/hyperledger/fabric/releases/download/v2.5.9/$FAB_TGZ" \
+        || { echo "[run] fabric tools download failed"; exit 1; }
+      tar -xzf "$FABRIC_TOOLS_DIR/fabric-tools.tar.gz" -C "$FABRIC_TOOLS_DIR"
+      export PATH="$FABRIC_TOOLS_DIR/bin:$PATH"
+    fi
+  fi
+  command -v cryptogen >/dev/null 2>&1 || { echo "[run] cryptogen still missing"; exit 1; }
+
+  # Java chaincode builds need JDK 21 (shadowJar via the repo wrapper).
+  if ! ./gradlew --version >/dev/null 2>&1; then
+    echo "[run] gradlew needs a JDK — install JDK 21 and re-run"; exit 1
+  fi
+
+  # Chaincode server images.
+  docker pull eclipse-temurin:21-jre >/dev/null 2>&1 || echo "[run] warning: temurin pull failed (needed for cc servers)"
+
+  echo "[run] Phase 2a: crypto + fabric containers (start-network.sh)..."
+  bash infrastructure/scripts/start-network.sh || exit 1
+  echo "[run] Phase 2b: channel create + join..."
+  bash infrastructure/scripts/create-channel.sh || exit 1
+  bash infrastructure/scripts/join-channel.sh || exit 1
+
+  echo "[run] Phase 2c: building chaincode jars (one gradle invocation)..."
+  ./gradlew :blockchain:chaincode:identity:shadowJar \
+            :blockchain:chaincode:access-control:shadowJar \
+            :blockchain:chaincode:asset-registry:shadowJar --no-daemon || exit 1
+  # Deploy script expects the x.y jar names (gradle emits x.y.z).
+  cp blockchain/chaincode/identity/build/libs/identity-chaincode-*.0.0.jar \
+     blockchain/chaincode/identity/build/libs/identity-chaincode-1.0.jar 2>/dev/null || true
+  cp blockchain/chaincode/access-control/build/libs/access-control-chaincode-*.0.0.jar \
+     blockchain/chaincode/access-control/build/libs/access-control-chaincode-1.0.jar 2>/dev/null || true
+  cp blockchain/chaincode/asset-registry/build/libs/asset-registry-chaincode-*.0.0.jar \
+     blockchain/chaincode/asset-registry/build/libs/asset-registry-chaincode-1.0.jar 2>/dev/null || true
+
+  echo "[run] Phase 2d: deploying chaincodes (ccaas, ~5 min each)..."
+  for cc in identity accesscontrol assetregistry; do
+    bash infrastructure/scripts/deploy-cc-aas.sh "$cc" || exit 1
+  done
+  echo "[run] fabric online — restarting backend services to connect..."
+  docker compose up -d --force-recreate identity-svc access-svc asset-svc || exit 1
 fi
 
 # ── 3. Wait for health ────────────────────────────────────────────────
