@@ -46,6 +46,13 @@ public class GlobalExceptionHandler {
                 .body(new ApiError("IPFS_UPLOAD_FAILED", "IPFS storage error: " + e.getMessage(), null));
     }
 
+    @ExceptionHandler(FabricUnavailableException.class)
+    public ResponseEntity<ApiError> handleFabricUnavailable(FabricUnavailableException e) {
+        logger.warn("Fabric unavailable: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ApiError("FABRIC_UNAVAILABLE", e.getMessage(), null));
+    }
+
     @ExceptionHandler(GatewayException.class)
     public ResponseEntity<ApiError> handleGateway(GatewayException e) {
         logger.error("Fabric gateway error: {}", e.getMessage());
