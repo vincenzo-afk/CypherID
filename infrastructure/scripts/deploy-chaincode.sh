@@ -53,7 +53,7 @@ if [ ! -f "$JAR_PATH" ]; then
 fi
 echo "Chaincode jar: $JAR_PATH"
 
-# ── 2. Package (from peer0-org1; jars are mounted at /opt/chaincode) ─────────
+# ── 2. Package (from cypherid-peer0-org1; jars are mounted at /opt/chaincode) ─────────
 echo "Packaging $CC chaincode ..."
 docker exec \
   -e CORE_PEER_LOCALMSPID=Org1MSP \
@@ -61,7 +61,7 @@ docker exec \
   -e CORE_PEER_ADDRESS=peer0.org1.cypherid.com:7051 \
   -e CORE_PEER_TLS_ENABLED=true \
   -e CORE_PEER_TLS_ROOTCERT_FILE="$CRYPTO/peerOrganizations/org1.cypherid.com/tlsca/tlsca.org1.cypherid.com-cert.pem" \
-  peer0-org1 \
+  cypherid-peer0-org1 \
   peer lifecycle chaincode package "/opt/artifacts/${CC}.tar.gz" \
     --lang java --path "/opt/chaincode/${CC_DIR}/build/libs/${JAR}" \
     --label "${CC}_${VERSION}"
@@ -71,7 +71,7 @@ install_peer() {
   local ORG_ID="$1"
   local ORG_NUM="$2"
   local PEER_ADDR="$3"
-  local CONTAINER="peer0-org${ORG_NUM}"
+  local CONTAINER="cypherid-peer0-org${ORG_NUM}"
 
   echo "Installing $CC on $CONTAINER ..."
   docker exec \
@@ -87,14 +87,14 @@ install_peer Org1MSP 1 peer0.org1.cypherid.com:7051
 install_peer Org2MSP 2 peer0.org2.cypherid.com:8051
 install_peer Org3MSP 3 peer0.org3.cypherid.com:9051
 
-# ── 4. Resolve the package ID (from peer0-org1) ───────────────────────────────
+# ── 4. Resolve the package ID (from cypherid-peer0-org1) ───────────────────────────────
 PACKAGE_ID="$(docker exec \
   -e CORE_PEER_LOCALMSPID=Org1MSP \
   -e CORE_PEER_MSPCONFIGPATH="$CRYPTO/peerOrganizations/org1.cypherid.com/users/Admin@org1.cypherid.com/msp" \
   -e CORE_PEER_ADDRESS=peer0.org1.cypherid.com:7051 \
   -e CORE_PEER_TLS_ENABLED=true \
   -e CORE_PEER_TLS_ROOTCERT_FILE="$CRYPTO/peerOrganizations/org1.cypherid.com/tlsca/tlsca.org1.cypherid.com-cert.pem" \
-  peer0-org1 peer lifecycle chaincode queryinstalled \
+  cypherid-peer0-org1 peer lifecycle chaincode queryinstalled \
   | sed -n "s/.*Package ID: \(${CC}_${VERSION}:[^,]*\), Label:.*/\1/p" | head -1)"
 
 if [ -z "$PACKAGE_ID" ]; then
@@ -108,7 +108,7 @@ approve_org() {
   local ORG_ID="$1"
   local ORG_NUM="$2"
   local PEER_ADDR="$3"
-  local CONTAINER="peer0-org${ORG_NUM}"
+  local CONTAINER="cypherid-peer0-org${ORG_NUM}"
 
   echo "Approving $CC definition for $ORG_ID ..."
   docker exec \
@@ -136,7 +136,7 @@ docker exec \
   -e CORE_PEER_ADDRESS=peer0.org1.cypherid.com:7051 \
   -e CORE_PEER_TLS_ENABLED=true \
   -e CORE_PEER_TLS_ROOTCERT_FILE="$CRYPTO/peerOrganizations/org1.cypherid.com/tlsca/tlsca.org1.cypherid.com-cert.pem" \
-  peer0-org1 peer lifecycle chaincode commit \
+  cypherid-peer0-org1 peer lifecycle chaincode commit \
     -o orderer.cypherid.com:7050 --channelID cypherid-channel \
     --name "$CC" --version "$VERSION" --sequence "$SEQUENCE" \
     --signature-policy "$POLICY" \

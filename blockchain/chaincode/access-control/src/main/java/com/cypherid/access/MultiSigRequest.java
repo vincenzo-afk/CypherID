@@ -1,46 +1,59 @@
 package com.cypherid.access;
 
 import com.google.gson.annotations.SerializedName;
+import org.hyperledger.fabric.contract.annotation.DataType;
+import org.hyperledger.fabric.contract.annotation.Property;
 import java.util.List;
 
 /**
  * MultiSigRequest — on-chain record for multi-signature approval flows.
  * Stored under MULTISIG:{requestId}
  */
+@DataType
 public class MultiSigRequest {
 
     @SerializedName("requestId")
+    @Property
     private String requestId;
 
     @SerializedName("resourceId")
+    @Property
     private String resourceId;
 
     @SerializedName("requesterDid")
+    @Property
     private String requesterDid;
 
     @SerializedName("requiredApprovers")
+    @Property
     private List<String> requiredApprovers;
 
     @SerializedName("approvals")
+    @Property
     private List<ApprovalRecord> approvals;
 
     @SerializedName("requiredThreshold")
+    @Property
     private int requiredThreshold;
 
     /** PENDING | APPROVED | REJECTED | EXPIRED */
     @SerializedName("status")
+    @Property
     private String status;
 
     @SerializedName("createdAt")
+    @Property
     private String createdAt;
 
     @SerializedName("updatedAt")
+    @Property
     private String updatedAt;
 
+    @DataType
     public record ApprovalRecord(
-        @SerializedName("approverDid") String approverDid,
-        @SerializedName("signature")   String signature,
-        @SerializedName("timestamp")   String timestamp
+        @Property @SerializedName("approverDid") String approverDid,
+        @Property @SerializedName("signature")   String signature,
+        @Property @SerializedName("timestamp")   String timestamp
     ) {}
 
     private MultiSigRequest() {}

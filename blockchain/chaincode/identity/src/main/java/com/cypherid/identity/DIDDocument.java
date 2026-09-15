@@ -1,34 +1,48 @@
 package com.cypherid.identity;
 
 import com.google.gson.annotations.SerializedName;
+import org.hyperledger.fabric.contract.annotation.DataType;
+import org.hyperledger.fabric.contract.annotation.Property;
 
 /**
  * DIDDocument — on-chain representation of a Decentralized Identifier document.
  * Stored as JSON under key DID:{did} in Fabric world state.
  *
  * Follows W3C DID Core spec subset for SIH demo.
+ *
+ * {@code @DataType}/{@code @Property} are REQUIRED: the contract
+ * JSONTransactionSerializer builds its type registry from these annotations,
+ * and returning this type without them NPEs during endorsement.
  */
+@DataType
 public class DIDDocument {
 
+    @Property
     @SerializedName("did")
     private String did;
 
+    @Property
     @SerializedName("publicKey")
     private String publicKey;
 
+    @Property
     @SerializedName("metadata")
     private String metadata;
 
     /** ACTIVE | SUSPENDED | REVOKED */
+    @Property
     @SerializedName("status")
     private String status;
 
+    @Property
     @SerializedName("createdAt")
     private String createdAt;
 
+    @Property
     @SerializedName("updatedAt")
     private String updatedAt;
 
+    @Property
     @SerializedName("version")
     private int version;
 

@@ -1,6 +1,8 @@
 package com.cypherid.asset;
 
 import com.google.gson.annotations.SerializedName;
+import org.hyperledger.fabric.contract.annotation.DataType;
+import org.hyperledger.fabric.contract.annotation.Property;
 
 /**
  * Asset — on-chain record of a digital asset (document/IP/license).
@@ -9,43 +11,55 @@ import com.google.gson.annotations.SerializedName;
  * The actual file content is stored encrypted on IPFS.
  * The ipfsHash here is the IPFS CID of the AES-256-GCM encrypted blob.
  */
+@DataType
 public class Asset {
 
     @SerializedName("assetId")
+    @Property
     private String assetId;
 
     @SerializedName("ownerDid")
+    @Property
     private String ownerDid;
 
     /** IPFS CID of the AES-256-GCM encrypted file */
     @SerializedName("ipfsHash")
+    @Property
     private String ipfsHash;
 
     /** TOP_SECRET | SECRET | CONFIDENTIAL | UNCLASSIFIED */
     @SerializedName("classification")
+    @Property
     private String classification;
 
     /** Access policy ID bound to this asset */
     @SerializedName("policyId")
+    @Property
     private String policyId;
 
     /** ACTIVE | TRANSFERRED | BURNED */
     @SerializedName("status")
+    @Property
     private String status;
 
     @SerializedName("fileName")
+    @Property
     private String fileName;
 
     @SerializedName("fileType")
+    @Property
     private String fileType;
 
     @SerializedName("fileSizeBytes")
+    @Property
     private long fileSizeBytes;
 
     @SerializedName("createdAt")
+    @Property
     private String createdAt;
 
     @SerializedName("updatedAt")
+    @Property
     private String updatedAt;
 
     private Asset() {}

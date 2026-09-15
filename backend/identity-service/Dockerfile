@@ -11,4 +11,4 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=build /src/backend/identity-service/build/libs/app.jar app.jar
 EXPOSE 8081
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Dnetworkaddress.cache.ttl=30", "-jar", "app.jar"]

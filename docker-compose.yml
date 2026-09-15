@@ -237,19 +237,21 @@ services:
       ORDERER_GENERAL_TLS_ENABLED: "true"
       ORDERER_GENERAL_TLS_PRIVATEKEY: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.key
       ORDERER_GENERAL_TLS_CERTIFICATE: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.crt
-      ORDERER_GENERAL_TLS_ROOTCAS: '["/etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/tlsca/tlsca.cypherid.com-cert.pem"]'
-      ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.crt
-      ORDERER_GENERAL_CLUSTER_SERVERCERTIFICATE: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.crt
-      ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.key
-      ORDERER_GENERAL_CLUSTER_SERVERPRIVATEKEY: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/orderers/orderer.cypherid.com/tls/server.key
-      ORDERER_GENERAL_CLUSTER_ROOTCAS: '["/etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/tlsca/tlsca.cypherid.com-cert.pem"]'
+      ORDERER_GENERAL_TLS_ROOTCAS: /etc/hyperledger/fabric-crypto/ordererOrganizations/cypherid.com/tlsca/tlsca.cypherid.com-cert.pem
+      # No explicit CLUSTER_* block: this is a single-node Raft orderer and a
+      # partial cluster config panics ("should be defined altogether"), while a
+      # full one needs its own port. Defaults are correct for solo operation.
     ports:
       - "7050:7050"
     volumes:
       - ./infrastructure/fabric/artifacts/genesis.block:/etc/hyperledger/fabric/genesis.block:ro
       - ./infrastructure/fabric/crypto-config:/etc/hyperledger/fabric-crypto:ro
       - fabric-orderer-data:/var/hyperledger/production/orderer
-    networks: [cypherid-net]
+    # cypherid.com is a real public domain — without this alias the name
+    # resolves to its internet A records instead of this container.
+    networks:
+      cypherid-net:
+        aliases: [orderer.cypherid.com]
 
   peer0-org1:
     image: hyperledger/fabric-peer:2.5
@@ -260,7 +262,7 @@ services:
       CORE_PEER_ID: peer0.org1.cypherid.com
       CORE_PEER_ADDRESS: peer0.org1.cypherid.com:7051
       CORE_PEER_LISTENADDRESS: 0.0.0.0:7051
-      CORE_PEER_CHAINCODEADDRESS: 0.0.0.0:7052
+      CORE_PEER_CHAINCODEADDRESS: peer0.org1.cypherid.com:7052
       CORE_PEER_CHAINCODELISTENADDRESS: 0.0.0.0:7052
       CORE_PEER_LOCALMSPID: Org1MSP
       CORE_PEER_MSPCONFIGPATH: /etc/hyperledger/fabric-crypto/peerOrganizations/org1.cypherid.com/peers/peer0.org1.cypherid.com/msp
@@ -282,11 +284,14 @@ services:
       - ./infrastructure/fabric/crypto-config:/etc/hyperledger/fabric-crypto:ro
       - ./infrastructure/fabric/artifacts:/opt/artifacts
       - ./blockchain/chaincode:/opt/chaincode:ro
+      - ./infrastructure/fabric/ccaas:/opt/ccaas:ro
       - /var/run/docker.sock:/host/var/run/docker.sock
       - peer0-org1-data:/var/hyperledger/production
     depends_on:
       couchdb0: { condition: service_started }
-    networks: [cypherid-net]
+    networks:
+      cypherid-net:
+        aliases: [peer0.org1.cypherid.com]
 
   peer0-org2:
     image: hyperledger/fabric-peer:2.5
@@ -297,7 +302,7 @@ services:
       CORE_PEER_ID: peer0.org2.cypherid.com
       CORE_PEER_ADDRESS: peer0.org2.cypherid.com:8051
       CORE_PEER_LISTENADDRESS: 0.0.0.0:8051
-      CORE_PEER_CHAINCODEADDRESS: 0.0.0.0:8052
+      CORE_PEER_CHAINCODEADDRESS: peer0.org2.cypherid.com:8052
       CORE_PEER_CHAINCODELISTENADDRESS: 0.0.0.0:8052
       CORE_PEER_LOCALMSPID: Org2MSP
       CORE_PEER_MSPCONFIGPATH: /etc/hyperledger/fabric-crypto/peerOrganizations/org2.cypherid.com/peers/peer0.org2.cypherid.com/msp
@@ -322,7 +327,9 @@ services:
       - peer0-org2-data:/var/hyperledger/production
     depends_on:
       couchdb1: { condition: service_started }
-    networks: [cypherid-net]
+    networks:
+      cypherid-net:
+        aliases: [peer0.org2.cypherid.com]
 
   peer0-org3:
     image: hyperledger/fabric-peer:2.5
@@ -333,7 +340,7 @@ services:
       CORE_PEER_ID: peer0.org3.cypherid.com
       CORE_PEER_ADDRESS: peer0.org3.cypherid.com:9051
       CORE_PEER_LISTENADDRESS: 0.0.0.0:9051
-      CORE_PEER_CHAINCODEADDRESS: 0.0.0.0:9052
+      CORE_PEER_CHAINCODEADDRESS: peer0.org3.cypherid.com:9052
       CORE_PEER_CHAINCODELISTENADDRESS: 0.0.0.0:9052
       CORE_PEER_LOCALMSPID: Org3MSP
       CORE_PEER_MSPCONFIGPATH: /etc/hyperledger/fabric-crypto/peerOrganizations/org3.cypherid.com/peers/peer0.org3.cypherid.com/msp
@@ -358,7 +365,9 @@ services:
       - peer0-org3-data:/var/hyperledger/production
     depends_on:
       couchdb2: { condition: service_started }
-    networks: [cypherid-net]
+    networks:
+      cypherid-net:
+        aliases: [peer0.org3.cypherid.com]
   # ─────────────────────────────────────────────────────────────────────────────
   # Backend services (built from the monorepo root)
   # ─────────────────────────────────────────────────────────────────────────────

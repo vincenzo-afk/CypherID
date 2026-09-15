@@ -23,7 +23,7 @@ join_peer() {
   local ORG_ID="$1"      # e.g. Org1MSP
   local ORG_NUM="$2"     # e.g. 1
   local PEER_ADDR="$3"   # e.g. peer0.org1.cypherid.com:7051
-  local CONTAINER="peer0-org${ORG_NUM}"
+  local CONTAINER="cypherid-peer0-org${ORG_NUM}"
   local PEER_CA="$CRYPTO/peerOrganizations/org${ORG_NUM}.cypherid.com/tlsca/tlsca.org${ORG_NUM}.cypherid.com-cert.pem"
   local ADMIN_MSP="$CRYPTO/peerOrganizations/org${ORG_NUM}.cypherid.com/users/Admin@org${ORG_NUM}.cypherid.com/msp"
 

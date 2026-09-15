@@ -21,7 +21,8 @@ dependencies {
 
     // Hyperledger Fabric Gateway SDK
     implementation 'org.hyperledger.fabric:fabric-gateway:1.12.1'
-    implementation 'io.grpc:grpc-netty-shaded:1.61.1'
+    implementation 'com.google.protobuf:protobuf-java:4.29.3'
+    implementation 'io.grpc:grpc-netty-shaded:1.83.1'
 
     // Bouncy Castle for cryptography (EC keys for DID)
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'

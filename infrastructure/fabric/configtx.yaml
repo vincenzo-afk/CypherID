@@ -109,10 +109,12 @@ Application: &ApplicationDefaults
     LifecycleEndorsement:
       Type: ImplicitMeta
       Rule: "MAJORITY Endorsement"
-    # All 3 orgs must endorse every transaction (docs/infrastructure/03)
+    # All 3 orgs must endorse every transaction (docs/infrastructure/03).
+    # ImplicitMeta only accepts "<THRESHOLD> <SUB_POLICY>" — ALL Endorsement
+    # is exactly "every org's Endorsement policy must be satisfied".
     Endorsement:
       Type: ImplicitMeta
-      Rule: "AND('Org1MSP.peer','Org2MSP.peer','Org3MSP.peer')"
+      Rule: "ALL Endorsement"
 
 Orderer: &OrdererDefaults
   OrdererType: etcdraft

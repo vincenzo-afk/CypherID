@@ -14,6 +14,9 @@ FABRIC_DIR="$ROOT/infrastructure/fabric"
 echo "Stopping Fabric containers ..."
 (cd "$ROOT" && docker compose --profile fabric down)
 
+echo "Removing chaincode-as-a-service servers ..."
+docker rm -f cypherid-cc-identity cypherid-cc-accesscontrol cypherid-cc-assetregistry >/dev/null 2>&1 || true
+
 echo "Removing generated material under $FABRIC_DIR ..."
 rm -rf "$FABRIC_DIR/crypto-config" \
        "$FABRIC_DIR/artifacts" \

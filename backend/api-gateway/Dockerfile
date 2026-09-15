@@ -11,4 +11,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=build /src/backend/api-gateway/build/libs/app.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# JDK caches DNS forever by default — on recreate, downstream service IPs go
+# stale and the gateway dials dead addresses until restarted. 30s TTL keeps
+# service discovery working across `up --force-recreate` cycles.
+ENTRYPOINT ["java", "-Dnetworkaddress.cache.ttl=30", "-jar", "app.jar"]

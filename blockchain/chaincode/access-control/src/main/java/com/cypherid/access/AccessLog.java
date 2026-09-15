@@ -1,39 +1,51 @@
 package com.cypherid.access;
 
 import com.google.gson.annotations.SerializedName;
+import org.hyperledger.fabric.contract.annotation.DataType;
+import org.hyperledger.fabric.contract.annotation.Property;
 
 /**
  * AccessLog — immutable on-chain record of every access decision.
  * Stored under ACCESS_LOG:{txId}
  */
+@DataType
 public class AccessLog {
 
     @SerializedName("logId")
+    @Property
     private String logId;
 
     @SerializedName("did")
+    @Property
     private String did;
 
     @SerializedName("resourceId")
+    @Property
     private String resourceId;
 
     @SerializedName("action")
+    @Property
     private String action;
 
     /** GRANTED | DENIED */
     @SerializedName("decision")
+    @Property
     private String decision;
 
     @SerializedName("reason")
+    @Property
     private String reason;
 
     @SerializedName("policyId")
+    @Property
     private String policyId;
 
     @SerializedName("timestamp")
+    @Property
     private String timestamp;
 
     @SerializedName("contextAttributes")
+    @Property
     private String contextAttributes;
 
     private AccessLog() {}

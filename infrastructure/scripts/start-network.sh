@@ -65,18 +65,26 @@ for ORG in Org1MSP Org2MSP Org3MSP; do
 done
 
 # ── 3. Service TLS + admin material ───────────────────────────────────────────
-# The Java gateway clients (identity/access/asset) read the Org1 peer TLS CA
-# cert and Org1 admin identity from /config/fabric/* (see FabricConnectionConfig).
+# The Java gateway clients (identity/access/asset) read peer TLS CA certs
+# and the Org1 admin identity from /config/fabric/* (see FabricConnectionConfig).
+# Endorsement policy spans all 3 orgs, so peer-ca.crt is a BUNDLE of all three
+# org TLS CAs — a single-org bundle breaks endorsement with TLS errors.
 # Copy the real cryptogen output there so the services can connect over TLS.
 ORG1_MSP="$CRYPTO_CONFIG/peerOrganizations/org1.cypherid.com"
 TLSCA_CERT="$ORG1_MSP/tlsca/tlsca.org1.cypherid.com-cert.pem"
+TLS2="$CRYPTO_CONFIG/peerOrganizations/org2.cypherid.com/tlsca/tlsca.org2.cypherid.com-cert.pem"
+TLS3="$CRYPTO_CONFIG/peerOrganizations/org3.cypherid.com/tlsca/tlsca.org3.cypherid.com-cert.pem"
 ADMIN_MSP="$ORG1_MSP/users/Admin@org1.cypherid.com/msp"
 
 [ -f "$TLSCA_CERT" ] || { echo "ERROR: $TLSCA_CERT not found" >&2; exit 1; }
+[ -f "$TLS2" ] || { echo "ERROR: $TLS2 not found" >&2; exit 1; }
+[ -f "$TLS3" ] || { echo "ERROR: $TLS3 not found" >&2; exit 1; }
 [ -f "$ADMIN_MSP/signcerts/Admin@org1.cypherid.com-cert.pem" ] || \
-  { echo "ERROR: Org1 admin cert not found" >&2; exit 1; }
+   { echo "ERROR: Org1 admin cert not found" >&2; exit 1; }
 
-cp "$TLSCA_CERT" "$SERVICE_CONFIG/tls/peer-ca.crt"
+cat "$TLSCA_CERT" "$TLS2" "$TLS3" > "$SERVICE_CONFIG/tls/peer-ca.crt"
+cp "$TLS2" "$SERVICE_CONFIG/tls/peer-ca-org2.crt"
+cp "$TLS3" "$SERVICE_CONFIG/tls/peer-ca-org3.crt"
 cp "$ADMIN_MSP/signcerts/Admin@org1.cypherid.com-cert.pem" \
    "$SERVICE_CONFIG/admin/signcerts/admin.pem"
 

@@ -1,41 +1,53 @@
 package com.cypherid.access;
 
 import com.google.gson.annotations.SerializedName;
+import org.hyperledger.fabric.contract.annotation.DataType;
+import org.hyperledger.fabric.contract.annotation.Property;
 import java.util.Map;
 
 /**
  * AccessPolicy — stored on-chain under POLICY:{policyId}
  * Defines who can access a resource with what role and ABAC attributes.
  */
+@DataType
 public class AccessPolicy {
 
     @SerializedName("policyId")
+    @Property
     private String policyId;
 
     @SerializedName("resourceId")
+    @Property
     private String resourceId;
 
     @SerializedName("requiredRole")
+    @Property
     private String requiredRole;
 
     /** ABAC attribute requirements: e.g., {"dept":"DRDO","location":"HYD"} */
     @SerializedName("abacAttributes")
+    @Property
     private Map<String, String> abacAttributes;
 
     /** READ | WRITE | DELETE | ADMIN */
     @SerializedName("action")
+    @Property
     private String action;
 
     @SerializedName("active")
+    @Property
     private boolean active;
 
     @SerializedName("createdBy")
+    @Property
     private String createdBy;
 
     @SerializedName("createdAt")
+    @Property
     private String createdAt;
 
     @SerializedName("updatedAt")
+    @Property
     private String updatedAt;
 
     private AccessPolicy() {}

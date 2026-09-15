@@ -123,6 +123,36 @@ What it does, in order (idempotent — safe to re-run):
     agent share the same URL (one shadows the other). Frontend-only tunnel is
     correct because its nginx already proxies `/api/*` to the gateway.
 
+## 10b. Phase 2 — the REAL Fabric network (no demo)
+
+The Asset Hub banner said blockchain features need Fabric. Brought up the actual
+3-org network instead of demo mode:
+
+- **Tools**: no cryptogen/configtxgen on the box — Fabric 2.5.9 windows
+  binaries in `E:\tools\fabric\bin` (repo scripts expect them on PATH).
+- **`configtx.yaml`**: `Endorsement: AND('Org1MSP.peer',...)` is invalid
+  ImplicitMeta — `ALL Endorsement` (same "all 3 orgs" intent).
+- **`docker-compose.yml` fabric fixes**: quoted-JSON `*_ROOTCAS` → plain
+  paths; removed partial `CLUSTER_*` block (solo orderer); peer
+  `CHAINCODEADDRESS 0.0.0.0` → hostnames; `cypherid-net` DNS aliases
+  (cypherid.com is a real public domain — names resolved to AWS IPs);
+  ccaas dir mounted into peer0-org1.
+- **Scripts**: `peer0-orgN` → `cypherid-peer0-orgN`; `MSYS_NO_PATHCONV=1`
+  (git-bash rewrites container paths); stop script removes cc servers;
+  `peer-ca.crt` bundles all 3 org TLS CAs (AND-policy dials all orgs).
+- **Windows cryptogen quirk**: MSP `config.yaml`s had backslashes.
+- **Deploy is ccaas** (`deploy-cc-aas.sh`, new): peer image ships only the
+  ccaas builder; packages hand-crafted (`type: ccaas`, root connection.json)
+  with deterministic Python tarballs. Chaincode mains support `--ccaas`
+  server mode; servers `cypherid-cc-*` with `CORE_CHAINCODE_ID_NAME`.
+- **Contracts needed `@DataType`/`@Property`** on all models (else NPE).
+- **Backend**: grpc-netty `1.61.1→1.83.1`, `protobuf-java:4.29.3`,
+  `-Dnetworkaddress.cache.ttl=30` on all 5 services.
+- **Verified live**: health `UP`; DID `did:cypherid:0x16c3...` (tx
+  `4b79ab2b...`); asset `ASSET-c307d3ab...` + IPFS `QmNQLs...` (tx
+  `a00350d8...`); policy (tx `2a338f...`).
+- Committed: identity (seq 2), accesscontrol (seq 1), assetregistry (seq 1).
+
 ## 10. Files changed in this session (all committed)
 
 - `.dockerignore` — added `**/node_modules`, `**/dist`
