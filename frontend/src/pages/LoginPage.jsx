@@ -13,7 +13,7 @@ export default function LoginPage() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    try { await login(did, password); navigate('/wallet'); }
+    try { await login(did.trim(), password); navigate('/wallet'); }
     catch { setError('Login failed. Check DID and password.'); }
   };
 

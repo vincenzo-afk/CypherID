@@ -15,7 +15,12 @@ export default defineConfig(({ mode }) => {
     }
   },
   build: {
-    outDir: 'dist'
+    outDir: 'dist',
+    // Default 'assets' collides with the /assets React route: nginx sees the
+    // dist/assets directory and 301-redirects /assets -> /assets/ (wrong port
+    // behind the :3000 mapping) instead of serving the SPA. 'static' avoids
+    // every app route.
+    assetsDir: 'static'
   },
   test: {
     environment: 'jsdom',

@@ -3,9 +3,11 @@ package com.cypherid.identity.service.service;
 import com.cypherid.identity.service.crypto.DIDKeyService;
 import com.cypherid.identity.service.domain.User;
 import com.cypherid.identity.service.dto.*;
+import com.cypherid.identity.service.exception.FabricUnavailableException;
 import com.cypherid.identity.service.fabric.FabricGatewayClient;
 import com.cypherid.identity.service.repository.UserRepository;
 import com.google.gson.Gson;
+import org.hyperledger.fabric.client.GatewayException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -110,6 +112,9 @@ public class IdentityManagementService {
 
             return new CreateDIDResponse(did, didDocumentJson, txHash, encodedPrivateKey);
 
+        } catch (GatewayException e) {
+            logger.error("DID creation failed — fabric unavailable: {}", e.getMessage());
+            throw new FabricUnavailableException("Blockchain network unavailable", e);
         } catch (Exception e) {
             logger.error("DID creation failed: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to create DID: " + e.getMessage(), e);
@@ -127,6 +132,9 @@ public class IdentityManagementService {
                     didDocJson,
                     extractStatus(didDocJson),
                     Instant.now().toString());
+        } catch (GatewayException e) {
+            logger.error("DID resolution failed for {} — fabric unavailable: {}", did, e.getMessage());
+            throw new FabricUnavailableException("Blockchain network unavailable", e);
         } catch (Exception e) {
             logger.error("DID resolution failed for {}: {}", did, e.getMessage());
             throw new RuntimeException("DID not found: " + did);

@@ -8,6 +8,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import jakarta.servlet.DispatcherType;
 
 /**
  * SecurityConfig — Spring Security 6 configuration for Identity Service.
@@ -27,6 +28,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // The servlet container re-dispatches with DispatcherType.ERROR
+                        // when a controller throws. Without this line that dispatch
+                        // hits anyRequest().denyAll() below and every 500
+                        // masquerades as an empty 403.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         // API paths are permitted: the API Gateway validates JWTs and
                         // injects trusted X-User-DID / X-User-Roles headers. Direct
                         // access without the gateway is blocked by network policy.

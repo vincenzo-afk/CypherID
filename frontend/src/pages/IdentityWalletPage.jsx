@@ -30,7 +30,9 @@ export default function IdentityWalletPage() {
   const docQuery = useQuery({
     queryKey: ['did-doc', target],
     queryFn: () => api.resolveDID(target).catch((e) => ({
-      error: e?.response?.status === 404 ? 'DID not found' : 'Resolve failed'
+      error: e?.response?.status === 404 ? 'DID not found'
+        : e?.response?.data?.code === 'FABRIC_UNAVAILABLE' ? 'Blockchain unavailable (running without Fabric)'
+        : 'Resolve failed'
     })),
     enabled: Boolean(target)
   });

@@ -6,7 +6,9 @@ const TOKEN_KEY = 'cypherid_access_token';
 export const apiClient = axios.create({
   baseURL: BASE,
   timeout: 15000,
-  withCredentials: true
+  withCredentials: true,
+  // ngrok free tunnels 403 browser API calls without this header; harmless locally.
+  headers: { 'ngrok-skip-browser-warning': 'true' }
 });
 
 apiClient.interceptors.request.use((config) => {

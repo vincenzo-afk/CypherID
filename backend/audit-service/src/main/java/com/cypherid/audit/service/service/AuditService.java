@@ -36,9 +36,11 @@ public class AuditService {
     public Page<AuditEventEntity> queryLogs(String did, String resourceId, String decision,
                                            String eventType, Instant from, Instant to,
                                            Pageable pageable) {
-        return repository.search(
-                blankToNull(did), blankToNull(resourceId), blankToNull(decision),
-                blankToNull(eventType), from, to, pageable);
+        return repository.findAll(
+                AuditEventRepository.filter(
+                        blankToNull(did), blankToNull(resourceId), blankToNull(decision),
+                        blankToNull(eventType), from, to),
+                pageable);
     }
 
     /**
