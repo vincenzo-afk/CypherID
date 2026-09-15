@@ -83,6 +83,23 @@ public class AccessEvaluationClient {
 
             throw new RuntimeException("Access evaluation failed with status: " + response.getStatusCode());
 
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            // The access service answered with an HTTP error — most commonly
+            // 403 DENIED with an AccessDecisionResponse body. That is a real
+            // access decision, NOT an outage: surface it as Forbidden so the
+            // caller returns 403 (previously this fell through to 503 and the
+            // UI blamed the blockchain).
+            String reason = "UNKNOWN";
+            try {
+                Map<String, String> result = gson.fromJson(e.getResponseBodyAsString(), STRING_MAP_TYPE);
+                if (result != null) {
+                    reason = result.getOrDefault("reason",
+                            result.getOrDefault("decision", "UNKNOWN"));
+                }
+            } catch (Exception parseError) {
+                logger.debug("Could not parse access-service error body: {}", parseError.getMessage());
+            }
+            throw new ForbiddenException("ACCESS_DENIED_" + reason, "Access denied: " + reason);
         } catch (RestClientException e) {
             logger.error("Access service unreachable: {}", e.getMessage());
             throw new FabricUnavailableException("Access service unavailable: " + e.getMessage(), e);

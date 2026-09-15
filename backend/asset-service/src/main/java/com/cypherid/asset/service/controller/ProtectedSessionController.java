@@ -2,7 +2,10 @@ package com.cypherid.asset.service.controller;
 
 import com.cypherid.asset.service.client.AccessEvaluationClient;
 import com.cypherid.asset.service.dto.IssueSessionResponse;
+import com.cypherid.asset.service.service.AssetService;
 import com.cypherid.asset.service.session.ProtectedSessionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,24 +17,34 @@ import org.springframework.web.bind.annotation.*;
  * POST /api/v1/assets/{assetId}/protected-session
  * <p>
  * Flow (docs/protection/documents/01_PROTECTED_DOCUMENT_FLOW.md):
- * access evaluation (Access Service) → GRANTED → issue session + token.
+ * owner bypass OR access evaluation (Access Service) → GRANTED → issue session + token.
  */
 @RestController
 @RequestMapping("/api/v1/assets")
 public class ProtectedSessionController {
 
+    private static final Logger logger = LoggerFactory.getLogger(ProtectedSessionController.class);
+
     private final AccessEvaluationClient accessEvaluationClient;
     private final ProtectedSessionService sessionService;
+    private final AssetService assetService;
 
     public ProtectedSessionController(AccessEvaluationClient accessEvaluationClient,
-                                      ProtectedSessionService sessionService) {
+                                      ProtectedSessionService sessionService,
+                                      AssetService assetService) {
         this.accessEvaluationClient = accessEvaluationClient;
         this.sessionService = sessionService;
+        this.assetService = assetService;
     }
 
     /**
      * POST /api/v1/assets/{assetId}/protected-session — evaluate access and,
      * if granted, issue a protected session (contentType=DOCUMENT for Phase 7).
+     * <p>
+     * The asset OWNER always passes: ownership is verified against the
+     * on-chain metadata this service already trusts, so owners can open
+     * their own uploads without an explicit policy. Everyone else goes
+     * through on-chain policy evaluation (default-deny without a policy).
      */
     @PostMapping("/{assetId}/protected-session")
     public ResponseEntity<IssueSessionResponse> issueSession(
@@ -39,8 +52,18 @@ public class ProtectedSessionController {
             @RequestHeader("X-User-DID") String userDid,
             @RequestHeader(value = "X-User-Roles", required = false) String roles) {
 
-        // 1. Evaluate access on-chain (via Access Service)
-        accessEvaluationClient.requireAccess(userDid, roles, assetId, "READ");
+        // 1. Owner bypass (verified on-chain); otherwise evaluate access.
+        boolean isOwner = false;
+        try {
+            isOwner = userDid != null
+                    && userDid.equals(assetService.getAssetMetadata(assetId).ownerDID());
+        } catch (Exception e) {
+            logger.debug("Owner check failed for {} (failing closed to policy evaluation): {}",
+                    assetId, e.getMessage());
+        }
+        if (!isOwner) {
+            accessEvaluationClient.requireAccess(userDid, roles, assetId, "READ");
+        }
 
         // 2. Issue the protected session
         IssueSessionResponse response = sessionService.issueSession(userDid, assetId, "DOCUMENT");

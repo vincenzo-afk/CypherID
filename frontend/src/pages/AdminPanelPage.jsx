@@ -10,6 +10,8 @@ export default function AdminPanelPage() {
   const [forensic, setForensic] = useState(null);
   const [org, setOrg] = useState({ name: '', mspId: '' });
   const [role, setRole] = useState({ did: '', role: 'ORG_MEMBER', organization: '' });
+  const [newUser, setNewUser] = useState({ name: '', employeeId: '', organization: '', department: '' });
+  const [created, setCreated] = useState(null);
   const [vc, setVc] = useState({ subjectDID: '', credentialType: 'SecurityClearance', clearanceLevel: 'CLEARANCE_LEVEL_3', expirationDate: '' });
   const [didOp, setDidOp] = useState({ did: '', reason: '' });
   const [override, setOverride] = useState({ resourceId: '', reason: '' });
@@ -41,6 +43,47 @@ export default function AdminPanelPage() {
         <Button variant="contained" onClick={() => run(() => api.createPolicy(policy), 'Policy created.')}>Create</Button>
       </Box>
       <pre style={{ maxHeight: 160, overflow: 'auto' }}>{JSON.stringify(policies.data, null, 2)}</pre>
+
+      <Typography variant="h6" sx={{ mt: 2 }}>Create User (admin)</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Registers a DID on-chain. Hand the DID + temporary password + private key to the user once — the private key is never stored server-side.
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+        <TextField size="small" label="Full name" value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} />
+        <TextField size="small" label="Employee ID" value={newUser.employeeId} onChange={(e) => setNewUser({ ...newUser, employeeId: e.target.value })} />
+        <TextField size="small" label="Organization" value={newUser.organization} onChange={(e) => setNewUser({ ...newUser, organization: e.target.value })} />
+        <TextField size="small" label="Department" value={newUser.department} onChange={(e) => setNewUser({ ...newUser, department: e.target.value })} />
+        <Button variant="contained" onClick={async () => {
+          if (!newUser.name.trim() || !newUser.organization.trim()) { setMsg('Name and organization are required.'); return; }
+          try {
+            const r = await api.createDID({
+              organization: newUser.organization.trim(),
+              department: newUser.department.trim(),
+              kycData: { name: newUser.name.trim(), employeeId: newUser.employeeId.trim() }
+            });
+            setCreated(r);
+            setMsg(`User created on-chain. Tx: ${r.txHash || 'recorded'}.`);
+            policies.refetch();
+          } catch (e) { setCreated(null); setMsg(e?.response?.data?.message || 'User creation failed.'); }
+        }}>Create user</Button>
+      </Box>
+      {created && (
+        <Box sx={{ mb: 2, p: 2, border: '1px solid', borderColor: 'warning.main', borderRadius: 1 }}>
+          <Typography variant="subtitle2" color="warning.main">One-time credentials — copy now, they will not be shown again.</Typography>
+          {[
+            ['DID', created.did],
+            ['Temporary password', 'CypherID@2026!'],
+            ['Private key (base64)', created.privateKey],
+            ['Tx hash', created.txHash],
+          ].map(([label, value]) => value ? (
+            <Box key={label} sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 1 }}>
+              <Typography variant="body2" sx={{ minWidth: 170 }}>{label}:</Typography>
+              <Typography variant="body2" sx={{ wordBreak: 'break-all', flex: 1 }}>{value}</Typography>
+              <Button size="small" onClick={() => { try { navigator.clipboard.writeText(value); } catch { /* clipboard unavailable */ } }}>Copy</Button>
+            </Box>
+          ) : null)}
+        </Box>
+      )}
 
       <Typography variant="h6" sx={{ mt: 2 }}>Issue Verifiable Credential (org admin)</Typography>
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
