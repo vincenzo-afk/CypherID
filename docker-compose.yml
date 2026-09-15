@@ -117,7 +117,7 @@ services:
       - cypherid-net
 
   ipfs:
-    image: ipfs/kubo:latest
+    image: ipfs/kubo:v0.29.0
     container_name: cypherid-ipfs
     command: ["daemon", "--migrate"]
     ports:

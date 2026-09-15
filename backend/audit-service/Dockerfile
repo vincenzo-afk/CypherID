@@ -5,7 +5,7 @@
 FROM gradle:8.8-jdk21 AS build
 WORKDIR /src
 COPY . .
-RUN gradle :backend:audit-service:bootJar --no-daemon
+RUN --mount=type=cache,target=/root/.gradle gradle :backend:audit-service:bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app

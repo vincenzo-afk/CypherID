@@ -3,6 +3,7 @@ package com.cypherid.gateway.config;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import reactor.core.publisher.Mono;
 
@@ -20,6 +21,7 @@ public class RateLimiterConfig {
      * The DID is injected by JwtAuthFilter as X-User-DID header.
      */
     @Bean
+    @Primary
     public KeyResolver didKeyResolver() {
         return exchange -> {
             String did = exchange.getRequest().getHeaders().getFirst("X-User-DID");

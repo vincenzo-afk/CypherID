@@ -12,6 +12,8 @@ infrastructure/fabric/config/
 **/build/
 build/
 out/
+**/bin/
+bin/
 
 # ── IDE / OS ───────────────────────────────────────────────────────────────────
 .idea/
