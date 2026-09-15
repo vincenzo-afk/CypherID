@@ -127,7 +127,24 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 key-resolver: "#{@didKeyResolver}"
 
-        # Protected content routes
+        # Session-token content routes — NO JwtAuthFilter. /chunk and
+        # /session-info authenticate with Bearer {sessionToken} (issued at
+        # protected-session time after access evaluation), NOT the user JWT —
+        # the filter would 401 every viewer call. The asset service validates
+        # the session token itself. Must precede protected-content (first
+        # match wins). Rate-limited by IP since no DID is available.
+        - id: protected-content-session
+          uri: http://${ASSET_SVC_HOST:asset-svc}:8083
+          predicates:
+            - Path=/api/v1/protected-content/chunk,/api/v1/protected-content/session-info
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 60
+                redis-rate-limiter.burstCapacity: 120
+                key-resolver: "#{@ipKeyResolver}"
+
+        # Protected content routes (session events + close need the user JWT)
         - id: protected-content
           uri: http://${ASSET_SVC_HOST:asset-svc}:8083
           predicates:
