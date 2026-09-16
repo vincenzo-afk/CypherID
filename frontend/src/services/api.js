@@ -12,8 +12,14 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Only attach the user JWT when the caller hasn't already provided its own
+  // Authorization header — the protected-content viewer passes a short-lived
+  // *session* token per request (session-info / chunk), and overwriting it
+  // made asset-svc 401 every viewer call ("Session invalid or expired").
+  if (!config.headers?.Authorization) {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
