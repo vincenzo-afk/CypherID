@@ -55,6 +55,7 @@ export default function RegisterPage() {
       {result && (
         <Box sx={{ mt: 2 }}>
           <Typography>Enrolled DID: <strong>{result.did}</strong></Typography>
+          {result.temporaryPassword && <Typography variant="body2" sx={{ mt: 1 }}>One-time password: <strong>{result.temporaryPassword}</strong> — save it now.</Typography>}
           {(result.txHash || result.txId) && (
             <Typography variant="body2">On-chain tx: {result.txHash || result.txId}</Typography>
           )}

@@ -45,6 +45,11 @@ export default function ProtectedRenderer({
       onFallback && onFallback(`TEMPORAL_DISABLED_${temporalCheck.reason}`);
     }
 
+    // UUIDs all have the same length; hash the value so every session gets a
+    // distinct deterministic pattern instead of sharing the same modulation.
+    const normalizedSeed = String(sessionSeed).split('').reduce(
+      (hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0
+    );
     let raf = 0;
     let tick = 0;
     let lastRotation = performance.now();
@@ -65,10 +70,10 @@ export default function ProtectedRenderer({
           tick += 1;
           lastRotation = ts;
         }
-        const brightness = temporal.modulationAt(ts, sessionSeed);
+        const brightness = temporal.modulationAt(ts, normalizedSeed);
         pattern.drawBackground(ctx, w, h, ts);
         content.draw(ctx, w, h, lines, brightness);
-        spatial.drawOverlay(ctx, w, h, tick + sessionSeed);
+        spatial.drawOverlay(ctx, w, h, tick + normalizedSeed);
         wm.draw(ctx, w, h, watermark, tick);
       }
       raf = requestAnimationFrame(renderFrame);

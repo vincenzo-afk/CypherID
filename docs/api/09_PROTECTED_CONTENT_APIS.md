@@ -29,6 +29,8 @@ Get session metadata (not content).
   "contentId": "DRDO-DOC-007",
   "contentType": "DOCUMENT",
   "profile": "HIGH",
+  "fileName": "briefing.txt",
+  "fileType": "text/plain",
   "totalChunks": 12,
   "expiresAt": "ISO-8601",
   "state": "PROTECTED_VIEW",

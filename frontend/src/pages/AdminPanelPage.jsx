@@ -56,7 +56,7 @@ export default function AdminPanelPage() {
         <Button variant="contained" onClick={async () => {
           if (!newUser.name.trim() || !newUser.organization.trim()) { setMsg('Name and organization are required.'); return; }
           try {
-            const r = await api.createDID({
+            const r = await api.createUser({
               organization: newUser.organization.trim(),
               department: newUser.department.trim(),
               kycData: { name: newUser.name.trim(), employeeId: newUser.employeeId.trim() }
@@ -72,7 +72,7 @@ export default function AdminPanelPage() {
           <Typography variant="subtitle2" color="warning.main">One-time credentials — copy now, they will not be shown again.</Typography>
           {[
             ['DID', created.did],
-            ['Temporary password', 'CypherID@2026!'],
+            ['Temporary password', created.temporaryPassword],
             ['Private key (base64)', created.privateKey],
             ['Tx hash', created.txHash],
           ].map(([label, value]) => value ? (

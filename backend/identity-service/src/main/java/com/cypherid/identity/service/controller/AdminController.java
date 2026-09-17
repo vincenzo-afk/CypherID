@@ -1,7 +1,10 @@
 package com.cypherid.identity.service.controller;
 
 import com.cypherid.identity.service.domain.User;
+import com.cypherid.identity.service.dto.CreateDIDRequest;
+import com.cypherid.identity.service.dto.CreateDIDResponse;
 import com.cypherid.identity.service.repository.UserRepository;
+import com.cypherid.identity.service.service.IdentityManagementService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -34,12 +37,24 @@ public class AdminController {
     private static final Map<String, Map<String, Object>> ORG_REGISTRY = new ConcurrentHashMap<>();
 
     private final UserRepository userRepository;
+    private final IdentityManagementService identityService;
     private final com.cypherid.identity.service.kafka.IdentityEventProducer eventProducer;
 
     public AdminController(UserRepository userRepository,
+                           IdentityManagementService identityService,
                            com.cypherid.identity.service.kafka.IdentityEventProducer eventProducer) {
         this.userRepository = userRepository;
+        this.identityService = identityService;
         this.eventProducer = eventProducer;
+    }
+
+    /** Creates a DID-backed user and returns one-time credentials to an admin. */
+    @PostMapping("/users")
+    public ResponseEntity<CreateDIDResponse> createUser(
+            @RequestHeader("X-User-Roles") String roles,
+            @Valid @RequestBody CreateDIDRequest request) {
+        requireAdminRole(roles);
+        return ResponseEntity.status(HttpStatus.CREATED).body(identityService.createDID(request));
     }
 
     /**

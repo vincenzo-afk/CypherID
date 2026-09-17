@@ -54,8 +54,13 @@ public class AssetController {
      */
     @GetMapping
     public ResponseEntity<List<AssetMetadataResponse>> listOwnerAssets(
-            @RequestParam("ownerDID") String ownerDid) {
+            @RequestParam("ownerDID") String ownerDid,
+            @RequestHeader("X-User-DID") String callerDid) {
 
+        if (!callerDid.equals(ownerDid)) {
+            throw new com.cypherid.asset.service.exception.ForbiddenException(
+                    "ASSET_LIST_FORBIDDEN", "Assets may only be listed by their owner");
+        }
         return ResponseEntity.ok(assetService.listOwnerAssets(ownerDid));
     }
 

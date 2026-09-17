@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
-import { Box, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
 import ProtectedRenderer from '../renderer/ProtectedRenderer.jsx';
 import ProtectionStatus from '../components/ProtectionStatus.jsx';
 import { startCaptureMonitoring } from '../monitoring/captureMonitor.js';
@@ -13,6 +13,8 @@ export default function ProtectedDocumentViewer() {
   const [sessionToken] = useState(location.state?.sessionToken || '');
   const [info, setInfo] = useState(null);
   const [lines, setLines] = useState(['Loading authorized content…']);
+  const [chunk, setChunk] = useState(0);
+  const [loadingChunk, setLoadingChunk] = useState(false);
   const [obscured, setObscured] = useState(false);
   const [hiddenCount, setHiddenCount] = useState(0);
 
@@ -24,23 +26,20 @@ export default function ProtectedDocumentViewer() {
   useEffect(() => {
     if (!sessionToken || !info) return;
     let cancelled = false;
-    const total = info.totalChunks || 1;
     (async () => {
-      const out = [];
-      for (let i = 0; i < total; i++) {
-        try {
-          const chunk = await api.fetchChunk(sessionToken, i);
-          out.push(typeof chunk === 'string' ? chunk : JSON.stringify(chunk));
-        } catch (e) {
-          if (e?.response?.status === 403) { setObscured(true); out.push('[Chunk withheld: session obscured]'); }
-          else { out.push(`[Chunk ${i} unavailable]`); }
-        }
-        if (cancelled) return;
-        setLines([...out]);
+      setLoadingChunk(true);
+      try {
+        const bytes = await api.fetchChunk(sessionToken, chunk);
+        if (!cancelled) setLines(new TextDecoder('utf-8', { fatal: false }).decode(bytes).split(/\r?\n/));
+      } catch (e) {
+        if (e?.response?.status === 403) setObscured(true);
+        if (!cancelled) setLines([e?.response?.status === 403 ? '[Content withheld: session obscured]' : `[Chunk ${chunk + 1} unavailable]`]);
+      } finally {
+        if (!cancelled) setLoadingChunk(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [sessionToken, info]);
+  }, [sessionToken, info, chunk]);
 
   useEffect(() => {
     const stop = startCaptureMonitoring(async (event) => {
@@ -62,14 +61,25 @@ export default function ProtectedDocumentViewer() {
     <Box sx={{ position: 'fixed', inset: 0, bgcolor: '#fff', p: 2, overflow: 'auto' }}>
       <Typography variant="h6">Protected Document — {info?.contentId || sessionId}</Typography>
       <ProtectionStatus state={obscured ? 'CONTENT_OBSCURED' : info?.state || 'AUTHORIZED'} profile={info?.profile || 'MEDIUM'} />
+      {info?.fileType && !info.fileType.startsWith('text/') && (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          {info.fileName || 'This file'} is delivered in protected chunks. This viewer currently renders UTF-8 text documents; binary PDF and Office rendering needs a format-specific protected renderer.
+        </Alert>
+      )}
       <Box sx={{ mt: 2 }}>
         <ProtectedRenderer
           lines={lines}
           profile={info?.profile || 'MEDIUM'}
-          watermark={info?.watermark || null}
-          sessionSeed={sessionId ? sessionId.length : 0}
+          watermark={info?.watermark ? { ...info.watermark, contentId: info.contentId } : null}
+          sessionSeed={sessionId || ''}
           obscured={obscured}
         />
+      </Box>
+      <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Button onClick={() => setChunk((value) => Math.max(0, value - 1))} disabled={chunk === 0 || loadingChunk || obscured}>Previous</Button>
+        <Typography variant="body2">Chunk {chunk + 1} of {info?.totalChunks || 1}</Typography>
+        <Button onClick={() => setChunk((value) => Math.min((info?.totalChunks || 1) - 1, value + 1))} disabled={chunk >= (info?.totalChunks || 1) - 1 || loadingChunk || obscured}>Next</Button>
+        {loadingChunk && <CircularProgress size={18} />}
       </Box>
     </Box>
   );

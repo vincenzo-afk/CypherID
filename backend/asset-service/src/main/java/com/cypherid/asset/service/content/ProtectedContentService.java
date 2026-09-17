@@ -3,6 +3,7 @@ package com.cypherid.asset.service.content;
 import com.cypherid.asset.service.config.ProtectionConfigurationService;
 import com.cypherid.asset.service.crypto.EncryptionService;
 import com.cypherid.asset.service.domain.AssetEncryptionKeyEntity;
+import com.cypherid.asset.service.dto.AssetMetadataResponse;
 import com.cypherid.asset.service.dto.SessionInfoResponse;
 import com.cypherid.asset.service.dto.WatermarkDto;
 import com.cypherid.asset.service.exception.*;
@@ -122,7 +123,8 @@ public class ProtectedContentService {
      */
     public SessionInfoResponse sessionInfo(String token) {
         SessionState session = sessionService.validateSession(token);
-        long fileSize = fetchFileSize(session.contentId());
+        AssetMetadataResponse asset = getAssetMetadata(session.contentId());
+        long fileSize = asset.fileSizeBytes();
         int chunkSize = config.getChunkSizeBytes();
         int totalChunks = fileSize <= 0 ? 0 : (int) Math.ceil((double) fileSize / chunkSize);
 
@@ -133,7 +135,8 @@ public class ProtectedContentService {
 
         return new SessionInfoResponse(
                 session.sessionId(), session.contentId(), session.contentType(),
-                session.profile(), totalChunks, session.expiresAt(), session.state(), watermark);
+                session.profile(), asset.fileName(), asset.fileType(), totalChunks,
+                session.expiresAt(), session.state(), watermark);
     }
 
     // =========================================================================
@@ -179,15 +182,23 @@ public class ProtectedContentService {
         }
     }
 
-    private long fetchFileSize(String contentId) {
+    private AssetMetadataResponse getAssetMetadata(String contentId) {
         try {
             String assetJson = fabricClient.queryAsset(contentId);
             Map<String, String> asset = gson.fromJson(assetJson, STRING_MAP_TYPE);
-            String size = asset != null ? asset.get("fileSizeBytes") : null;
-            if (size == null || size.isBlank()) return 0;
-            return Long.parseLong(size);
-        } catch (GatewayException | NumberFormatException e) {
-            return 0;
+            if (asset == null) {
+                throw new ResourceNotFoundException("ASSET_NOT_FOUND", "Asset not found: " + contentId);
+            }
+            long fileSize = 0;
+            try { fileSize = Long.parseLong(asset.getOrDefault("fileSizeBytes", "0")); }
+            catch (NumberFormatException ignored) { /* malformed legacy metadata has no size */ }
+            return new AssetMetadataResponse(
+                    asset.get("assetId"), asset.get("ownerDid"), asset.get("ipfsHash"),
+                    asset.get("classification"), asset.get("policyId"), asset.get("status"),
+                    asset.get("fileName"), asset.get("fileType"), fileSize,
+                    asset.get("createdAt"), asset.get("updatedAt"));
+        } catch (GatewayException e) {
+            throw new FabricUnavailableException("Blockchain network unavailable", e);
         }
     }
 

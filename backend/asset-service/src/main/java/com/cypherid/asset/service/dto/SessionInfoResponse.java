@@ -9,6 +9,8 @@ public record SessionInfoResponse(
     String contentId,
     String contentType,
     String profile,
+    String fileName,
+    String fileType,
     int totalChunks,
     String expiresAt,   // ISO-8601
     String state,

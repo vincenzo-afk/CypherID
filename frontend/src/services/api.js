@@ -174,7 +174,7 @@ export const api = {
     apiClient.get('/api/v1/protected-content/chunk', {
       headers: { Authorization: `Bearer ${sessionToken}` },
       params: { chunk },
-      responseType: 'text'
+      responseType: 'arraybuffer'
     }).then((r) => r.data),
   logSecurityEvent: (sessionId, event) =>
     apiClient.post(`/api/v1/protected-content/session/${sessionId}/event`, event).then((r) => r.data),
@@ -210,6 +210,7 @@ export const api = {
 
   // Admin (docs/api/15)
   registerOrganization: (body) => apiClient.post('/api/v1/admin/organizations', body).then((r) => r.data),
+  createUser: (body) => apiClient.post('/api/v1/admin/users', body).then((r) => r.data),
   listOrganizations: () => apiClient.get('/api/v1/admin/organizations').then((r) => r.data),
   assignRole: (did, body) =>
     apiClient.put(`/api/v1/admin/users/${encodeURIComponent(did)}/role`, body).then((r) => r.data)

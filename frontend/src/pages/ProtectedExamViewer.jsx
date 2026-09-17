@@ -103,7 +103,7 @@ export default function ProtectedExamViewer() {
           lines={[question?.body || 'Loading question…']}
           profile="HIGH"
           watermark={null}
-          sessionSeed={session.sessionId ? session.sessionId.length : 0}
+          sessionSeed={session.sessionId || ''}
           obscured={obscured || ended}
         />
       </Box>

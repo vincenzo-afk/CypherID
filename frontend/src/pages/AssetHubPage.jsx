@@ -55,6 +55,8 @@ export default function AssetHubPage() {
 
   const upload = async () => {
     if (!file || uploading) return;
+    if (file.size === 0) { say('warning', 'Choose a file with content to upload.'); return; }
+    if (file.size > 50 * 1024 * 1024) { say('warning', 'Files must be 50 MB or smaller.'); return; }
     const fd = new FormData();
     fd.append('file', file);
     fd.append('classification', classification);
@@ -133,12 +135,12 @@ export default function AssetHubPage() {
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6">Upload + Mint</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Files are encrypted locally, pinned to IPFS, then minted on-chain.
+          Files are encrypted by the protected backend, pinned to IPFS, then minted on-chain.
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button variant="outlined" component="label" disabled={fabricDown}>
             {file ? file.name : 'Choose file'}
-            <input type="file" hidden onChange={(e) => setFile(e.target.files[0] || null)} />
+            <input type="file" hidden onChange={(e) => { setFile(e.target.files[0] || null); setNotice(null); }} />
           </Button>
           <FormControl sx={{ minWidth: 180 }} size="small" disabled={fabricDown}>
             <InputLabel id="classification-label">Classification</InputLabel>
@@ -195,7 +197,7 @@ export default function AssetHubPage() {
           <pre style={{ maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(history, null, 2)}</pre>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
             <TextField size="small" label="Transfer to DID" value={toDID} onChange={(e) => setToDID(e.target.value)} />
-            <TextField size="small" label="Owner signature" value={signature} onChange={(e) => setSignature(e.target.value)} />
+            <TextField size="small" label="Owner signature" helperText="Required for transfer or irreversible burn" value={signature} onChange={(e) => setSignature(e.target.value)} />
             <Button variant="outlined" onClick={transfer} disabled={fabricDown}>Transfer</Button>
             <Button variant="outlined" color="error" onClick={burn} disabled={fabricDown}>Burn</Button>
           </Box>

@@ -88,7 +88,7 @@ describe('api service', () => {
     expect(mockAxiosInstance.post).toHaveBeenCalledWith(
       '/api/v1/assets',
       formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }
     );
   });
 
@@ -109,7 +109,7 @@ describe('api service', () => {
       {
         headers: { Authorization: 'Bearer session-tok-123' },
         params: { chunk: 3 },
-        responseType: 'text'
+        responseType: 'arraybuffer'
       }
     );
   });

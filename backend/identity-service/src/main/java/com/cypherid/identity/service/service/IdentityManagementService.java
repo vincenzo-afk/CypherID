@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.KeyPair;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Map;
 
@@ -34,7 +35,8 @@ public class IdentityManagementService {
     private static final Logger logger = LoggerFactory.getLogger(IdentityManagementService.class);
 
     private static final String ADMIN_DID = "did:cypherid:admin:root";
-    private static final String TEMP_PASSWORD = "CypherID@2026!"; // Default initial password, user should change
+    private static final char[] PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%".toCharArray();
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final FabricGatewayClient fabricClient;
     private final DIDKeyService didKeyService;
@@ -66,6 +68,7 @@ public class IdentityManagementService {
      */
     public CreateDIDResponse createDID(CreateDIDRequest request) {
         try {
+            String temporaryPassword = generateTemporaryPassword();
             // 1. Generate key pair
             KeyPair keyPair = didKeyService.generateKeyPair();
             String encodedPublicKey = didKeyService.encodePublicKey(keyPair.getPublic());
@@ -98,7 +101,7 @@ public class IdentityManagementService {
             // 5. Persist to PostgreSQL
             User user = new User();
             user.setDid(did);
-            user.setPasswordHash(passwordEncoder.encode(TEMP_PASSWORD));
+            user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
             user.setOrganization(request.organization());
             user.setDepartment(request.department());
             user.setClearanceLevel("UNCLASSIFIED");
@@ -110,7 +113,7 @@ public class IdentityManagementService {
 
             logger.info("DID created successfully: {} for org: {}", did, request.organization());
 
-            return new CreateDIDResponse(did, didDocumentJson, txHash, encodedPrivateKey);
+            return new CreateDIDResponse(did, didDocumentJson, txHash, encodedPrivateKey, temporaryPassword);
 
         } catch (GatewayException e) {
             logger.error("DID creation failed — fabric unavailable: {}", e.getMessage());
@@ -234,5 +237,13 @@ public class IdentityManagementService {
         if (didDocJson.contains("\"SUSPENDED\"")) return "SUSPENDED";
         if (didDocJson.contains("\"REVOKED\"")) return "REVOKED";
         return "UNKNOWN";
+    }
+
+    private static String generateTemporaryPassword() {
+        StringBuilder value = new StringBuilder(20);
+        for (int i = 0; i < 20; i++) {
+            value.append(PASSWORD_ALPHABET[SECURE_RANDOM.nextInt(PASSWORD_ALPHABET.length)]);
+        }
+        return value.toString();
     }
 }
