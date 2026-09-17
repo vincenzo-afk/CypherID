@@ -1,8 +1,9 @@
-import { AppBar, Badge, Box, Button, Container, Toolbar, Typography } from '@mui/material';
+import { AppBar, Badge, Box, Button, Container, Toolbar } from '@mui/material';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../services/api.js';
+import Logo from './Logo.jsx';
 
 const listOf = (data) => {
   if (Array.isArray(data)) return data;
@@ -28,20 +29,32 @@ export default function AppLayout({ children }) {
   // Hide the nav link for the page you are already on, so there is exactly one
   // "Log in" / "Create my ID" button in the DOM at a time.
   const { pathname } = useLocation();
+  // Auth pages use a premium dark hero; give the bar a matching dark-glass look there.
+  const isAuthPage = pathname === '/login' || pathname === '/register';
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="static" elevation={0} sx={{ background: '#ffffff', color: '#111928', borderBottom: '1px solid #e5e7eb' }}>
+      <AppBar
+        position="static"
+        elevation={0}
+        sx={{
+          position: 'relative', zIndex: 2,
+          ...(isAuthPage
+            ? {
+                background: 'rgba(7,11,22,0.55)', color: '#eef2fb',
+                borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)'
+              }
+            : { background: '#ffffff', color: '#111928', borderBottom: '1px solid #e5e7eb' })
+        }}
+      >
         <Toolbar sx={{ gap: 0.5, flexWrap: 'wrap' }}>
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 800, mr: 'auto' }}
+          <Box
             component={Link}
             to={user ? '/home' : '/'}
-            style={{ textDecoration: 'none', color: 'inherit' }}
+            sx={{ mr: 'auto', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', py: 0.5 }}
           >
-            CypherID
-          </Typography>
+            <Logo size={30} variant={isAuthPage ? 'light' : 'full'} wordSize={20} />
+          </Box>
           {user ? (
             <>
               <Button color="inherit" component={Link} to="/home">Home</Button>
@@ -62,9 +75,21 @@ export default function AppLayout({ children }) {
           ) : (
             <>
               <Button color="inherit" component={Link} to="/home">What is CypherID?</Button>
-              {pathname !== '/login' && <Button color="inherit" component={Link} to="/login">Log in</Button>}
+              {pathname !== '/login' && (
+                <Button color="inherit" component={Link} to="/login" sx={isAuthPage ? { color: '#c9d6f2' } : undefined}>Log in</Button>
+              )}
               {pathname !== '/register' && (
-                <Button variant="contained" component={Link} to="/register">Create my ID</Button>
+                <Button
+                  variant="contained" component={Link} to="/register"
+                  sx={isAuthPage
+                    ? {
+                        background: 'linear-gradient(90deg, #2a63f6, #7a5cff)',
+                        boxShadow: '0 6px 20px rgba(42,99,246,0.4)',
+                        '&:hover': { boxShadow: '0 8px 26px rgba(42,99,246,0.55)' }
+                      }
+                    : undefined
+                  }
+                >Create my ID</Button>
               )}
             </>
           )}

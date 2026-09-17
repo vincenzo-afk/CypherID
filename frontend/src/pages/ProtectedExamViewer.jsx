@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, TextField, Typography } from '@mui/material';
 import ProtectedRenderer from '../renderer/ProtectedRenderer.jsx';
 import ProtectionStatus from '../components/ProtectionStatus.jsx';
@@ -11,6 +11,8 @@ import { api } from '../services/api.js';
 export default function ProtectedExamViewer() {
   const { sessionId: routeSessionId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
+  const goBack = () => { try { if (window.history.length > 1) navigate(-1); else navigate('/home'); } catch { navigate('/home'); } };
   const [examId, setExamId] = useState(location.state?.examId || '');
   const [examInput, setExamInput] = useState('');
   const [session, setSession] = useState(
@@ -96,7 +98,10 @@ export default function ProtectedExamViewer() {
 
   return (
     <Box sx={{ position: 'fixed', inset: 0, bgcolor: '#fff', p: 2, overflow: 'auto' }}>
-      <Typography variant="h6">Protected Exam — {examId} (Q{questionIndex})</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h6">Protected Exam — {examId} (Q{questionIndex})</Typography>
+        <Button size="small" variant="outlined" onClick={goBack}>← Back</Button>
+      </Box>
       <ProtectionStatus state={ended ? 'EXPIRED' : obscured ? 'CONTENT_OBSCURED' : 'PROTECTED_VIEW'} profile="HIGH" />
       <Box sx={{ mt: 2 }}>
         <ProtectedRenderer

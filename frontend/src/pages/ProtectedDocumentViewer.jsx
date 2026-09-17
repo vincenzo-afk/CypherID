@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
 import ProtectedRenderer from '../renderer/ProtectedRenderer.jsx';
 import ProtectionStatus from '../components/ProtectionStatus.jsx';
@@ -10,6 +10,8 @@ import { api } from '../services/api.js';
 export default function ProtectedDocumentViewer() {
   const { sessionId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
+  const goBack = () => { try { if (window.history.length > 1) navigate(-1); else navigate('/assets'); } catch { navigate('/assets'); } };
   const [sessionToken] = useState(location.state?.sessionToken || '');
   const [info, setInfo] = useState(null);
   const [lines, setLines] = useState(['Loading authorized content…']);
@@ -59,7 +61,10 @@ export default function ProtectedDocumentViewer() {
 
   return (
     <Box sx={{ position: 'fixed', inset: 0, bgcolor: '#fff', p: 2, overflow: 'auto' }}>
-      <Typography variant="h6">Protected view — {info?.fileName || info?.contentId || 'file'}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h6">Protected view — {info?.fileName || info?.contentId || 'file'}</Typography>
+        <Button size="small" variant="outlined" onClick={goBack}>← Back to my files</Button>
+      </Box>
       <ProtectionStatus state={obscured ? 'CONTENT_OBSCURED' : info?.state || 'AUTHORIZED'} profile={info?.profile || 'MEDIUM'} />
       {info?.fileType && !info.fileType.startsWith('text/') && (
         <Alert severity="success" sx={{ mt: 2 }}>

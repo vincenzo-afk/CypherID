@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, CircularProgress,
+  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
   FormControl, InputLabel, MenuItem, Paper, Select, TextField, Typography,
   Table, TableBody, TableCell, TableHead, TableRow
 } from '@mui/material';
@@ -45,6 +46,8 @@ export default function AssetHubPage() {
   const [selected, setSelected] = useState(null);
   const [toDID, setToDID] = useState('');
   const [signature, setSignature] = useState('');
+  const [confirmBurn, setConfirmBurn] = useState(false);
+  const [burning, setBurning] = useState(false);
 
   const say = (severity, text) => setNotice({ severity, text });
   const explain = (e, fallback) => (isFabricDown(e) ? FABRIC_MSG : (e?.response?.data?.message || fallback));
@@ -118,14 +121,21 @@ export default function AssetHubPage() {
 
   const burn = async () => {
     if (!selected || !signature.trim()) { say('warning', 'Destroying a file needs your signature first.'); return; }
-    if (!window.confirm(`Destroy ${selected.fileName || selected.assetId || selected.id}? This cannot be undone.`)) return;
+    setConfirmBurn(true);
+  };
+
+  const burnConfirmed = async () => {
+    if (!selected) return;
     const assetId = selected.assetId || selected.id;
+    setBurning(true);
     try {
       const res = await api.burnAsset(assetId, { ownerSignature: signature.trim() });
       say('success', `Burned ${assetId}. Tx: ${res.txHash || res.txId || 'recorded'}.`);
+      setConfirmBurn(false);
       setSelected(null);
       assetsQuery.refetch();
     } catch (e) { say('error', explain(e, 'Burn failed.')); }
+    finally { setBurning(false); }
   };
 
   return (
@@ -260,6 +270,26 @@ export default function AssetHubPage() {
             record that it once existed stays behind.
           </Typography>
           <Button variant="outlined" color="error" onClick={burn} disabled={fabricDown}>Burn</Button>
+
+          <Dialog open={confirmBurn} onClose={() => !burning && setConfirmBurn(false)}>
+            <DialogTitle>Are you sure you want to burn?</DialogTitle>
+            <DialogContent>
+              <DialogContentText component="div">
+                <strong>{selected?.fileName || selected?.assetId || selected?.id}</strong> will be
+                destroyed permanently. This cannot be undone — the file disappears from your
+                list, and only the on-chain record that it once existed remains.
+                <Box component="p" sx={{ mt: 1, mb: 0 }}>
+                  Signature: <strong>{signature.trim()}</strong>
+                </Box>
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setConfirmBurn(false)} disabled={burning}>Cancel</Button>
+              <Button onClick={burnConfirmed} color="error" variant="contained" disabled={burning}>
+                {burning ? 'Burning…' : 'Yes, burn it'}
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Paper>
       )}
     </Box>

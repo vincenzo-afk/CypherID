@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, TextField, Typography } from '@mui/material';
 import ProtectionStatus from '../components/ProtectionStatus.jsx';
 import { startCaptureMonitoring } from '../monitoring/captureMonitor.js';
@@ -11,6 +11,8 @@ import { api } from '../services/api.js';
 export default function ProtectedVideoViewer() {
   const { sessionId: routeSessionId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
+  const goBack = () => { try { if (window.history.length > 1) navigate(-1); else navigate('/home'); } catch { navigate('/home'); } };
   const [videoId, setVideoId] = useState(location.state?.videoId || '');
   const [videoInput, setVideoInput] = useState('');
   const [session, setSession] = useState(
@@ -83,7 +85,10 @@ export default function ProtectedVideoViewer() {
 
   return (
     <Box sx={{ position: 'fixed', inset: 0, bgcolor: '#000', color: '#fff', p: 2, overflow: 'auto' }}>
-      <Typography variant="h6">Protected Video — {videoId}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h6">Protected Video — {videoId}</Typography>
+        <Button size="small" variant="outlined" onClick={goBack} sx={{ color: '#fff' }}>← Back</Button>
+      </Box>
       <ProtectionStatus state={obscured ? 'CONTENT_OBSCURED' : 'PROTECTED_VIEW'} profile={info?.profile || 'MEDIUM'} />
       <Typography variant="caption">
         Watermark: {info?.watermark ? JSON.stringify(info.watermark) : 'session-bound'} · OS-level recording cannot be prevented by a web app.
