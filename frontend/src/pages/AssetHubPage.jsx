@@ -1,14 +1,27 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Alert, Box, Button, Chip, CircularProgress, FormControl, InputLabel, MenuItem,
-  Paper, Select, TextField, Typography, Table, TableBody, TableCell, TableHead, TableRow
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, CircularProgress,
+  FormControl, InputLabel, MenuItem, Paper, Select, TextField, Typography,
+  Table, TableBody, TableCell, TableHead, TableRow
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const CLASSIFICATIONS = ['UNCLASSIFIED', 'CONFIDENTIAL', 'SECRET', 'TOP_SECRET'];
+
+// Sensitivity is an internal scale; show what it means in plain words.
+const CLASSIFICATION_LABELS = {
+  UNCLASSIFIED: 'Unclassified — anyone in the organization',
+  CONFIDENTIAL: 'Confidential — approved people only',
+  SECRET: 'Secret — need-to-know only',
+  TOP_SECRET: 'Top secret — highest protection'
+};
+const sensitivityLabel = (c) => CLASSIFICATION_LABELS[c] || c;
+
+const STATUS_LABELS = { ACTIVE: 'Active', TRANSFERRED: 'Given away', BURNED: 'Destroyed', SUSPENDED: 'Suspended' };
+const statusLabel = (s) => STATUS_LABELS[s] || s;
 
 const listOf = (data) => {
   if (Array.isArray(data)) return data;
@@ -20,7 +33,7 @@ const listOf = (data) => {
 const isFabricDown = (e) =>
   e?.response?.status === 503 || e?.response?.data?.code === 'FABRIC_UNAVAILABLE';
 
-const FABRIC_MSG = 'Blockchain network unavailable — asset minting, listing, transfer and burn need the Fabric network. Start it (Phase 2) or run demo mode to use these features.';
+const FABRIC_MSG = 'The secure record that proves who owns what is not reachable right now, so files cannot be added, listed, passed on or destroyed. Ask your administrator to bring the network back up.';
 
 export default function AssetHubPage() {
   const { user } = useAuth();
@@ -94,7 +107,7 @@ export default function AssetHubPage() {
   };
 
   const transfer = async () => {
-    if (!selected || !toDID.trim() || !signature.trim()) { say('warning', 'Transfer needs target DID + owner signature.'); return; }
+    if (!selected || !toDID.trim() || !signature.trim()) { say('warning', 'To give a file away we need who it goes to and your signature.'); return; }
     const assetId = selected.assetId || selected.id;
     try {
       const res = await api.transferAsset(assetId, { toDID: toDID.trim(), ownerSignature: signature.trim() });
@@ -104,8 +117,8 @@ export default function AssetHubPage() {
   };
 
   const burn = async () => {
-    if (!selected || !signature.trim()) { say('warning', 'Burn needs the owner signature.'); return; }
-    if (!window.confirm(`Burn asset ${selected.assetId || selected.id}? This is irreversible.`)) return;
+    if (!selected || !signature.trim()) { say('warning', 'Destroying a file needs your signature first.'); return; }
+    if (!window.confirm(`Destroy ${selected.fileName || selected.assetId || selected.id}? This cannot be undone.`)) return;
     const assetId = selected.assetId || selected.id;
     try {
       const res = await api.burnAsset(assetId, { ownerSignature: signature.trim() });
@@ -117,7 +130,12 @@ export default function AssetHubPage() {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Asset Hub</Typography>
+      <Typography variant="h5" gutterBottom>My files</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Add any kind of file — a document, a picture, a video, a zip. It is locked
+        with encryption, stored safely, and recorded as yours. Only you decide who
+        else may open it.
+      </Typography>
       {fabricDown && (
         <Alert severity="warning" sx={{ mb: 2 }}>{FABRIC_MSG}</Alert>
       )}
@@ -132,43 +150,47 @@ export default function AssetHubPage() {
         </Alert>
       )}
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6">Upload + Mint</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Files are encrypted by the protected backend, pinned to IPFS, then minted on-chain.
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Add a file</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Pick a file, choose how sensitive it is, then press the button. When it is
+          done you go straight to the protected viewer so you can check it looks right.
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button variant="outlined" component="label" disabled={fabricDown}>
             {file ? file.name : 'Choose file'}
             <input type="file" hidden onChange={(e) => { setFile(e.target.files[0] || null); setNotice(null); }} />
           </Button>
-          <FormControl sx={{ minWidth: 180 }} size="small" disabled={fabricDown}>
-            <InputLabel id="classification-label">Classification</InputLabel>
-            <Select labelId="classification-label" value={classification} label="Classification" onChange={(e) => setClassification(e.target.value)}>
-              {CLASSIFICATIONS.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+          <FormControl sx={{ minWidth: 260 }} size="small" disabled={fabricDown}>
+            <InputLabel id="classification-label">How sensitive is it?</InputLabel>
+            <Select labelId="classification-label" value={classification} label="How sensitive is it?" onChange={(e) => setClassification(e.target.value)}>
+              {CLASSIFICATIONS.map((c) => <MenuItem key={c} value={c}>{sensitivityLabel(c)}</MenuItem>)}
             </Select>
           </FormControl>
           <Button variant="contained" onClick={upload} disabled={fabricDown || uploading || !file}>
             {uploading ? 'Uploading…' : 'Encrypt + Upload + Protect'}
           </Button>
         </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+          Any file type is fine, up to 50 MB.
+        </Typography>
       </Paper>
 
-      <Typography variant="h6" sx={{ mt: 1 }}>My Assets ({assetsQuery.isLoading ? '…' : assets.length})</Typography>
+      <Typography variant="h6" sx={{ mt: 1 }}>My files ({assetsQuery.isLoading ? '…' : assets.length})</Typography>
       {assetsQuery.isLoading
-        ? <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}><CircularProgress size={20} /><Typography variant="body2">Loading assets…</Typography></Box>
+        ? <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}><CircularProgress size={20} /><Typography variant="body2">Loading your files…</Typography></Box>
         : assetsQuery.isError && !fabricDown
-          ? <Alert severity="error" sx={{ mt: 1 }}>Could not load assets: {assetsQuery.error?.response?.data?.message || 'backend error'}. <Button size="small" onClick={() => assetsQuery.refetch()}>Retry</Button></Alert>
+          ? <Alert severity="error" sx={{ mt: 1 }}>We could not load your files ({assetsQuery.error?.response?.data?.message || 'service problem'}). <Button size="small" onClick={() => assetsQuery.refetch()}>Try again</Button></Alert>
           : assets.length === 0
-            ? <Typography variant="body2">{fabricDown ? 'Asset list unavailable while the blockchain is down.' : `No assets for ${ownerDID || 'this identity'} yet — upload your first file above.`}</Typography>
+            ? <Paper sx={{ p: 3, textAlign: 'center' }}><Typography variant="body2" color="text.secondary">{fabricDown ? 'Your file list cannot be shown while the secure record is unreachable.' : 'No files yet. Add your first file above — it only takes a moment.'}</Typography></Paper>
             : (
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Asset ID</TableCell>
-                <TableCell>Classification</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Tx</TableCell>
+                <TableCell>File ID</TableCell>
+                <TableCell>Name</TableCell>
+                <TableCell>Sensitivity</TableCell>
+                <TableCell>State</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -176,11 +198,16 @@ export default function AssetHubPage() {
               {assets.map((a, i) => (
                 <TableRow key={a.assetId || a.id || i} selected={selected === a}>
                   <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.assetId || a.id}</TableCell>
-                  <TableCell><Chip label={a.classification || '—'} size="small" /></TableCell>
-                  <TableCell>{a.status || ''}</TableCell>
-                  <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.txHash || a.txId || ''}</TableCell>
+                  <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.fileName || a.name || '—'}</TableCell>
                   <TableCell>
-                    <Button size="small" onClick={() => setSelected(a)}>Detail</Button>
+                    <Chip
+                      label={a.classification ? a.classification.replace(/_/g, ' ').toLowerCase() : '—'}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>{statusLabel(a.status) || ''}</TableCell>
+                  <TableCell>
+                    <Button size="small" onClick={() => setSelected(a)}>Details</Button>
                     <Button size="small" onClick={() => protect(a)} disabled={fabricDown}>View</Button>
                   </TableCell>
                 </TableRow>
@@ -190,18 +217,50 @@ export default function AssetHubPage() {
         )}
 
       {selected && (
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="h6">Asset Detail + Provenance</Typography>
-          <pre style={{ maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(selected, null, 2)}</pre>
-          <Typography variant="subtitle2" sx={{ mt: 1 }}>History ({history.length})</Typography>
-          <pre style={{ maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(history, null, 2)}</pre>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-            <TextField size="small" label="Transfer to DID" value={toDID} onChange={(e) => setToDID(e.target.value)} />
-            <TextField size="small" label="Owner signature" helperText="Required for transfer or irreversible burn" value={signature} onChange={(e) => setSignature(e.target.value)} />
-            <Button variant="outlined" onClick={transfer} disabled={fabricDown}>Transfer</Button>
-            <Button variant="outlined" color="error" onClick={burn} disabled={fabricDown}>Burn</Button>
+        <Paper sx={{ mt: 3, p: 3 }}>
+          <Typography variant="h6" gutterBottom>File details</Typography>
+          <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
+            <strong>{selected.fileName || selected.name || 'File'}</strong>
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
+            <Chip size="small" label={`ID: ${selected.assetId || selected.id}`} />
+            {selected.classification && <Chip size="small" label={sensitivityLabel(selected.classification)} />}
+            {selected.status && <Chip size="small" color="primary" label={statusLabel(selected.status)} />}
           </Box>
-        </Box>
+
+          <Accordion elevation={0} sx={{ mt: 2, border: '1px solid #e5e7eb', boxShadow: 'none' }}>
+            <AccordionSummary>
+              <Typography variant="body2">Technical details and history ({history.length} events)</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <pre style={{ margin: 0, maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(selected, null, 2)}</pre>
+              <pre style={{ margin: 0, maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(history, null, 2)}</pre>
+            </AccordionDetails>
+          </Accordion>
+
+          <Typography variant="subtitle2" sx={{ mt: 2 }}>Pass this file on</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            The other person then owns it — you can no longer open it.
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <TextField size="small" label="Give to (digital ID)" value={toDID} onChange={(e) => setToDID(e.target.value)} />
+            <TextField
+              size="small"
+              label="Signature"
+              helperText="Type anything to confirm it is you"
+              value={signature}
+              onChange={(e) => setSignature(e.target.value)}
+            />
+            <Button variant="outlined" onClick={transfer} disabled={fabricDown}>Transfer</Button>
+          </Box>
+
+          <Typography variant="subtitle2" sx={{ mt: 2 }}>Destroy this file</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Destroying is permanent: the file disappears from your list, and only the
+            record that it once existed stays behind.
+          </Typography>
+          <Button variant="outlined" color="error" onClick={burn} disabled={fabricDown}>Burn</Button>
+        </Paper>
       )}
     </Box>
   );

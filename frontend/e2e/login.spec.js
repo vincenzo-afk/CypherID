@@ -16,7 +16,7 @@ test.describe('AuthGuard', () => {
   test('unauthenticated visit to a guarded route redirects to /login', async ({ page }) => {
     await page.goto('/wallet');
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByText('CypherID Login')).toBeVisible();
+    await expect(page.getByText('Log in to CypherID')).toBeVisible();
   });
 
   test('unauthenticated visit to /assets also redirects to /login', async ({ page }) => {
@@ -43,9 +43,9 @@ test.describe('Login flow', () => {
     });
 
     await page.goto('/login');
-    await page.getByLabel('DID (did:cypherid:...)').fill('did:cypherid:0xE2E');
+    await page.getByLabel('Digital ID').fill('did:cypherid:0xE2E');
     await page.getByLabel('Password').fill('CypherID@2026!');
-    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByRole('button', { name: 'Log in' }).click();
 
     await expect(page).toHaveURL(/\/wallet$/);
   });
@@ -60,11 +60,11 @@ test.describe('Login flow', () => {
     });
 
     await page.goto('/login');
-    await page.getByLabel('DID (did:cypherid:...)').fill('did:cypherid:0xE2E');
+    await page.getByLabel('Digital ID').fill('did:cypherid:0xE2E');
     await page.getByLabel('Password').fill('wrong-password');
-    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByRole('button', { name: 'Log in' }).click();
 
-    await expect(page.getByText('Login failed. Check DID and password.')).toBeVisible();
+    await expect(page.getByText('Login failed. Check your digital ID and password.')).toBeVisible();
     await expect(page).toHaveURL(/\/login$/);
   });
 });

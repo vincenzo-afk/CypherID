@@ -36,9 +36,9 @@ test.describe('LIVE full-app sweep', () => {
       if (r.url().includes('/api/') && r.status() >= 400) bad.push(`${r.status()} ${r.url()}`);
     });
     await page.goto('/login');
-    await page.getByLabel('DID (did:cypherid:...)').fill(ADMIN_DID);
+    await page.getByLabel('Digital ID').fill(ADMIN_DID);
     await page.getByLabel('Password').fill(ADMIN_PASSWORD);
-    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/wallet$/, { timeout: 20000 });
     console.log('login bad-api-calls: ' + JSON.stringify(bad));
   });
@@ -63,9 +63,9 @@ test.describe('LIVE full-app sweep', () => {
 
       // Authenticate first via real login
       await page.goto('/login');
-      await page.getByLabel('DID (did:cypherid:...)').fill(ADMIN_DID);
+      await page.getByLabel('Digital ID').fill(ADMIN_DID);
       await page.getByLabel('Password').fill(ADMIN_PASSWORD);
-      await page.getByRole('button', { name: 'Login' }).click();
+      await page.getByRole('button', { name: 'Log in' }).click();
       await expect(page).toHaveURL(/\/wallet$/, { timeout: 20000 });
 
       await page.goto(route);

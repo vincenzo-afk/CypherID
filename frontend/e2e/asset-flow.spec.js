@@ -26,14 +26,14 @@ test.describe('asset lifecycle (live UI)', () => {
 
     // Login
     await page.goto('/login');
-    await page.getByLabel('DID (did:cypherid:...)').fill(ADMIN_DID);
+    await page.getByLabel('Digital ID').fill(ADMIN_DID);
     await page.getByLabel('Password').fill(ADMIN_PASSWORD);
-    await page.getByRole('button', { name: 'Login' }).click();
+    await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL(/\/wallet$/, { timeout: 20000 });
 
     // Upload
     await page.goto('/assets');
-    await expect(page.getByText('My Assets')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('My files').first()).toBeVisible({ timeout: 15000 });
     await page.locator('input[type="file"]').setInputFiles(tmp);
     await page.getByRole('button', { name: /Encrypt \+ Upload \+ Protect/ }).click();
     // Success navigates to the protected viewer on session issuance
@@ -89,10 +89,10 @@ test.describe('asset lifecycle (live UI)', () => {
     // Transfer the JUST-uploaded asset (not the first row) to the test user
     const mine = page.locator('table tbody tr', { hasText: wb.assetId }).first();
     await expect(mine).toBeVisible({ timeout: 15000 });
-    await mine.getByRole('button', { name: 'Detail' }).click();
-    await expect(page.getByLabel('Transfer to DID')).toBeVisible({ timeout: 15000 });
-    await page.getByLabel('Transfer to DID').fill(TEST_USER_DID);
-    await page.getByLabel('Owner signature').fill('e2e-owner-signature');
+    await mine.getByRole('button', { name: 'Details' }).click();
+    await expect(page.getByLabel('Give to (digital ID)')).toBeVisible({ timeout: 15000 });
+    await page.getByLabel('Give to (digital ID)').fill(TEST_USER_DID);
+    await page.getByLabel('Signature').fill('e2e-owner-signature');
     await page.getByRole('button', { name: 'Transfer' }).click();
     // 3-org endorsement can outlast the 15s UI timeout, so the banner may say
     // Transferred OR a timeout error while the commit still lands — verify the
@@ -115,8 +115,9 @@ test.describe('asset lifecycle (live UI)', () => {
     expect(t.ok).toBe(true);
     console.log('TRANSFERRED to test user (owner now ' + t.owner + ')');
 
-    // History shows mint + transfer
-    await expect(page.getByText(/Minted|mint|Transfer|transfer/).first()).toBeVisible({ timeout: 15000 });
+    // History shows mint + transfer — expand "Technical details and history".
+    await page.getByText(/Technical details and history/).first().click();
+    await expect(page.getByText(/MINT|TRANSFER/i).first()).toBeVisible({ timeout: 15000 });
     const history = await page.textContent('body');
     console.log('HISTORY len=' + (history?.length || 0));
   });

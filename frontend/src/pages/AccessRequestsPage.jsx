@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Box, Button, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Divider, Paper, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
 
+// Sharing: ask for a file, pass permission on for a limited time, and require
+// several people to agree before a highly sensitive file is released.
 export default function AccessRequestsPage() {
   const navigate = useNavigate();
   const [resourceId, setResourceId] = useState('');
@@ -16,14 +18,14 @@ export default function AccessRequestsPage() {
   const evaluate = async () => {
     setError('');
     setResult(null);
-    if (!resourceId.trim()) { setError('Resource ID is required.'); return; }
+    if (!resourceId.trim()) { setError('Please enter the file ID you want to open.'); return; }
     try {
       const res = await api.requestAccess({ resourceId: resourceId.trim(), action: 'READ', contextAttributes: {} });
       setResult(res);
     } catch (e) {
       const data = e?.response?.data;
       setResult(data || { error: 'Denied' });
-      if (!data) setError('Request failed — check backend.');
+      if (!data) setError('We could not ask for access — please try again.');
     }
   };
 
@@ -32,8 +34,8 @@ export default function AccessRequestsPage() {
       const session = await api.issueProtectedSession(resourceId.trim());
       if (session.sessionId) {
         navigate(`/protected/document/${session.sessionId}`, { state: { sessionToken: session.sessionToken } });
-      } else setError('Access granted but session issuance returned no session.');
-    } catch { setError('Protected session failed after grant — check backend.'); }
+      } else setError('Access was allowed but the protected screen could not be opened.');
+    } catch { setError('Access was allowed but the protected screen could not be opened — please try again.'); }
   };
 
   const decision = result?.decision || (result?.error ? 'DENIED' : null);
@@ -47,8 +49,8 @@ export default function AccessRequestsPage() {
         action: delegate.action || 'READ',
         expiresAt: delegate.expiresAt
       });
-      setDelegateMsg(`Delegated. Tx: ${res.txHash || res.txId || 'recorded'}.`);
-    } catch (e) { setDelegateMsg(e?.response?.data?.message || 'Delegation failed.'); }
+      setDelegateMsg(`Done. Permission passed on. Recorded as ${res.txHash || res.txId || 'saved'}.`);
+    } catch (e) { setDelegateMsg(e?.response?.data?.message || 'We could not pass this permission on.'); }
   };
 
   const runMultisigCreate = async () => {
@@ -56,61 +58,122 @@ export default function AccessRequestsPage() {
     try {
       const approvers = multisig.approvers.split(',').map((s) => s.trim()).filter(Boolean);
       const res = await api.createMultiSig({ resourceId: multisig.resourceId.trim(), requiredApprovers: approvers });
-      setMultisigMsg(`Multi-sig request ${res.requestId || res.id || 'created'}. Tx: ${res.txHash || res.txId || 'recorded'}.`);
-    } catch (e) { setMultisigMsg(e?.response?.data?.message || 'Multi-sig creation failed.'); }
+      setMultisigMsg(`Request ${res.requestId || res.id || 'created'} — waiting for everyone to approve. Recorded as ${res.txHash || res.txId || 'saved'}.`);
+    } catch (e) { setMultisigMsg(e?.response?.data?.message || 'We could not create this approval request.'); }
   };
 
   const runMultisigApprove = async () => {
     setMultisigMsg('');
     try {
       const res = await api.approveMultiSig(multisig.requestId.trim(), { signature: multisig.signature.trim() });
-      setMultisigMsg(`Approval recorded. Status: ${res.status || 'recorded'}. Tx: ${res.txHash || res.txId || 'recorded'}.`);
-    } catch (e) { setMultisigMsg(e?.response?.data?.message || 'Approval failed.'); }
+      setMultisigMsg(`Your approval is in. Status: ${res.status || 'recorded'}. Recorded as ${res.txHash || res.txId || 'saved'}.`);
+    } catch (e) { setMultisigMsg(e?.response?.data?.message || 'We could not record your approval.'); }
   };
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Access Requests</Typography>
-      <Box sx={{ display: 'flex', gap: 1 }}>
-        <TextField label="Resource / Asset ID" value={resourceId} onChange={(e) => setResourceId(e.target.value)} fullWidth />
-        <Button variant="outlined" onClick={evaluate}>Evaluate</Button>
-      </Box>
-      {error && <Typography color="error" sx={{ mt: 1 }}>{error}</Typography>}
-      {decision && (
-        <Box sx={{ mt: 2, p: 2, border: 1, borderColor: decision === 'GRANTED' ? 'success.main' : 'error.main', borderRadius: 1 }}>
-          <Typography variant="h6" color={decision === 'GRANTED' ? 'success.main' : 'error.main'}>
-            {decision}
-          </Typography>
-          {(result.reason || result.error) && <Typography>Reason: {result.reason || result.error}</Typography>}
-          {(result.txHash || result.txId) && <Typography variant="body2">On-chain tx: {result.txHash || result.txId}</Typography>}
-          {decision === 'GRANTED' && (
-            <Button variant="contained" sx={{ mt: 1 }} onClick={openGranted}>Open Protected View</Button>
-          )}
+      <Typography variant="h5" gutterBottom>Sharing</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Ask to open a file that belongs to someone else, hand your permission to
+        somebody for a limited time, or ask several people to approve a highly
+        sensitive file before it is released.
+      </Typography>
+
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Ask to open a file</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Enter the file ID. The system checks the rules for that file — its
+          sensitivity and your clearance — and answers straight away.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <TextField
+            label="File ID"
+            placeholder="ASSET-…"
+            value={resourceId}
+            onChange={(e) => setResourceId(e.target.value)}
+            sx={{ flex: 1, minWidth: 240 }}
+          />
+          <Button variant="contained" onClick={evaluate}>Ask</Button>
         </Box>
-      )}
+        {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+        {decision && (
+          <Alert
+            severity={decision === 'GRANTED' ? 'success' : 'error'}
+            sx={{ mt: 2 }}
+            action={decision === 'GRANTED' ? <Button color="inherit" size="small" onClick={openGranted}>Open</Button> : null}
+          >
+            <Typography variant="subtitle2">
+              {decision === 'GRANTED' ? 'Allowed' : 'Refused'}
+            </Typography>
+            {(result.reason || result.error) && <Typography variant="body2">{result.reason || result.error}</Typography>}
+            {(result.txHash || result.txId) && (
+              <Typography variant="caption" sx={{ display: 'block' }}>Recorded as {result.txHash || result.txId}</Typography>
+            )}
+          </Alert>
+        )}
+      </Paper>
 
-      <Typography variant="h6" sx={{ mt: 3 }}>Delegate Access (time-bound)</Typography>
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        <TextField size="small" label="To DID" value={delegate.toDID} onChange={(e) => setDelegate({ ...delegate, toDID: e.target.value })} />
-        <TextField size="small" label="Resource ID" value={delegate.resourceId} onChange={(e) => setDelegate({ ...delegate, resourceId: e.target.value })} />
-        <TextField size="small" label="Action" value={delegate.action} onChange={(e) => setDelegate({ ...delegate, action: e.target.value })} />
-        <TextField size="small" label="Expires at (ISO-8601)" value={delegate.expiresAt} onChange={(e) => setDelegate({ ...delegate, expiresAt: e.target.value })} />
-        <Button variant="outlined" onClick={runDelegate}>Delegate</Button>
-      </Box>
-      {delegateMsg && <Typography sx={{ mt: 1 }}>{delegateMsg}</Typography>}
+      <Paper sx={{ p: 3, mt: 2 }}>
+        <Typography variant="h6" gutterBottom>Let someone else open it for a while</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          This gives another person permission until the date you choose, then it
+          stops working by itself.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <TextField size="small" label="Give to (digital ID)" value={delegate.toDID} onChange={(e) => setDelegate({ ...delegate, toDID: e.target.value })} />
+          <TextField size="small" label="File ID" value={delegate.resourceId} onChange={(e) => setDelegate({ ...delegate, resourceId: e.target.value })} />
+          <TextField size="small" label="They may" value={delegate.action} onChange={(e) => setDelegate({ ...delegate, action: e.target.value })} />
+          <TextField
+            size="small"
+            label="Until (date and time)"
+            placeholder="2026-12-31T18:00:00Z"
+            value={delegate.expiresAt}
+            onChange={(e) => setDelegate({ ...delegate, expiresAt: e.target.value })}
+          />
+          <Button variant="outlined" onClick={runDelegate}>Allow</Button>
+        </Box>
+        {delegateMsg && <Alert severity="info" sx={{ mt: 2 }}>{delegateMsg}</Alert>}
+      </Paper>
 
-      <Typography variant="h6" sx={{ mt: 3 }}>Multi-Signature Approval (classified resources)</Typography>
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        <TextField size="small" label="Resource ID" value={multisig.resourceId} onChange={(e) => setMultisig({ ...multisig, resourceId: e.target.value })} />
-        <TextField size="small" label="Approver DIDs (comma-separated)" value={multisig.approvers} onChange={(e) => setMultisig({ ...multisig, approvers: e.target.value })} />
-        <Button variant="outlined" onClick={runMultisigCreate}>Create Request</Button>
-      </Box>
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-        <TextField size="small" label="Request ID" value={multisig.requestId} onChange={(e) => setMultisig({ ...multisig, requestId: e.target.value })} />
-        <TextField size="small" label="Approval signature" value={multisig.signature} onChange={(e) => setMultisig({ ...multisig, signature: e.target.value })} />
-        <Button variant="outlined" onClick={runMultisigApprove}>Approve</Button>
-      </Box>
-      {multisigMsg && <Typography sx={{ mt: 1 }}>{multisigMsg}</Typography>}
+      <Paper sx={{ p: 3, mt: 2 }}>
+        <Typography variant="h6" gutterBottom>Several people must agree</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Used for the most sensitive files: instead of one person deciding, everyone
+          you name has to approve before the file is released.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <TextField size="small" label="File ID" value={multisig.resourceId} onChange={(e) => setMultisig({ ...multisig, resourceId: e.target.value })} />
+          <TextField
+            size="small"
+            label="Who must approve (digital IDs, comma separated)"
+            value={multisig.approvers}
+            onChange={(e) => setMultisig({ ...multisig, approvers: e.target.value })}
+            sx={{ minWidth: 280 }}
+          />
+          <Button variant="outlined" onClick={runMultisigCreate}>Ask them to approve</Button>
+        </Box>
+        <Divider sx={{ my: 2 }} />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          If you are one of the approvers, add your signature here.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <TextField size="small" label="Request ID" value={multisig.requestId} onChange={(e) => setMultisig({ ...multisig, requestId: e.target.value })} />
+          <TextField
+            size="small"
+            label="Your signature"
+            helperText="Type anything to confirm it is you"
+            value={multisig.signature}
+            onChange={(e) => setMultisig({ ...multisig, signature: e.target.value })}
+          />
+          <Button variant="outlined" onClick={runMultisigApprove}>I approve</Button>
+        </Box>
+        {multisigMsg && (
+          <Alert severity="info" sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip size="small" label="Approval" />
+            {multisigMsg}
+          </Alert>
+        )}
+      </Paper>
     </Box>
   );
 }

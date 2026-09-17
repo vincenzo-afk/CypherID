@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import {
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, CircularProgress, Paper,
+  Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
+} from '@mui/material';
 import { api } from '../services/api.js';
 
 const rowsOf = (data) => {
@@ -11,6 +14,23 @@ const rowsOf = (data) => {
 };
 
 const isoDaysAgo = (days) => new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+// Friendly names for the recorded event types.
+const EVENT_LABELS = {
+  ASSET_CREATE: 'File added',
+  ASSET_TRANSFER: 'File passed on',
+  ASSET_BURN: 'File destroyed',
+  ACCESS_REQUEST: 'Access asked for',
+  ACCESS_GRANTED: 'Access allowed',
+  ACCESS_DENIED: 'Access refused',
+  DID_CREATE: 'New ID created',
+  VC_ISSUE: 'Certificate issued',
+  LOGIN: 'Signed in',
+  LOGOUT: 'Signed out'
+};
+const eventLabel = (t) => EVENT_LABELS[t] || t || '';
+
+const SEVERITY_COLOR = { LOW: 'default', MEDIUM: 'warning', HIGH: 'error', CRITICAL: 'error' };
 
 export default function AuditDashboardPage() {
   const [filters, setFilters] = useState({ did: '', resourceId: '', decision: '' });
@@ -51,60 +71,96 @@ export default function AuditDashboardPage() {
   const lookupProvenance = async () => {
     if (!provenanceId.trim()) return;
     try { setProvenance(await api.assetHistory(provenanceId.trim())); }
-    catch { setProvenance({ error: 'Provenance lookup failed.' }); }
+    catch { setProvenance({ error: 'We could not find the history for that file.' }); }
   };
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Audit Dashboard</Typography>
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-        <TextField size="small" label="DID" value={filters.did} onChange={(e) => setFilters({ ...filters, did: e.target.value })} />
-        <TextField size="small" label="Resource" value={filters.resourceId} onChange={(e) => setFilters({ ...filters, resourceId: e.target.value })} />
-        <TextField size="small" label="Decision" value={filters.decision} onChange={(e) => setFilters({ ...filters, decision: e.target.value })} />
-        <Button variant="contained" onClick={() => { setApplied({ ...filters }); setTimeout(() => refetch(), 0); }}>Filter</Button>
-      </Box>
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2, alignItems: 'center' }}>
-        <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-        <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-        <Button variant="outlined" onClick={download}>Export PDF</Button>
-      </Box>
-      {isFetching && <Typography variant="body2">Loading…</Typography>}
+      <Typography variant="h5" gutterBottom>Activity</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        The full story of what happened: who opened, shared or destroyed a file, and
+        anything the system flagged as unusual. This record cannot be edited by
+        anyone, and you can download it as a report.
+      </Typography>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Search the record</Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <TextField size="small" label="Person (digital ID)" value={filters.did} onChange={(e) => setFilters({ ...filters, did: e.target.value })} />
+          <TextField size="small" label="File ID" value={filters.resourceId} onChange={(e) => setFilters({ ...filters, resourceId: e.target.value })} />
+          <TextField
+            size="small"
+            label="Was it allowed?"
+            placeholder="GRANTED or DENIED"
+            value={filters.decision}
+            onChange={(e) => setFilters({ ...filters, decision: e.target.value })}
+          />
+          <Button variant="contained" onClick={() => { setApplied({ ...filters }); setTimeout(() => refetch(), 0); }}>Search</Button>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mt: 2 }}>
+          <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <Button variant="outlined" onClick={download}>Download report (PDF)</Button>
+        </Box>
+      </Paper>
+
+      <Typography variant="h6" gutterBottom>What happened ({rows.length})</Typography>
+      {isFetching && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <CircularProgress size={20} />
+          <Typography variant="body2">Loading…</Typography>
+        </Box>
+      )}
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell>Time</TableCell>
-            <TableCell>Type</TableCell>
-            <TableCell>DID</TableCell>
-            <TableCell>Resource</TableCell>
-            <TableCell>Decision</TableCell>
-            <TableCell>Tx</TableCell>
+            <TableCell>When</TableCell>
+            <TableCell>What happened</TableCell>
+            <TableCell>Person</TableCell>
+            <TableCell>File</TableCell>
+            <TableCell>Allowed?</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {rows.map((r, i) => (
             <TableRow key={r.id || i}>
               <TableCell>{r.eventTime || r.timestamp || ''}</TableCell>
-              <TableCell>{r.eventType || r.type || ''}</TableCell>
+              <TableCell>{eventLabel(r.eventType || r.type)}</TableCell>
               <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.did || ''}</TableCell>
               <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.resourceId || r.resource || ''}</TableCell>
-              <TableCell>{r.decision || ''}</TableCell>
-              <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.txHash || r.txId || ''}</TableCell>
+              <TableCell>
+                {r.decision
+                  ? <Chip size="small" label={r.decision === 'GRANTED' ? 'Allowed' : 'Refused'} color={r.decision === 'GRANTED' ? 'success' : 'error'} />
+                  : ''}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-      {rows.length === 0 && !isFetching && <Typography variant="body2" sx={{ mt: 1 }}>No audit events.</Typography>}
+      {rows.length === 0 && !isFetching && (
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">Nothing recorded for this search yet.</Typography>
+        </Paper>
+      )}
 
-      <Typography variant="h6" sx={{ mt: 3 }}>Security Alerts ({secEvents.length})</Typography>
+      <Typography variant="h6" sx={{ mt: 3 }}>Things the system flagged ({secEvents.length})</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Unusual behaviour during protected viewing — for example, something that
+        looked like an attempt to photograph or record the screen.
+      </Typography>
       {secEvents.length === 0
-        ? <Typography variant="body2">No security alerts.</Typography>
+        ? (
+          <Paper sx={{ p: 3, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">Nothing flagged. That is good news.</Typography>
+          </Paper>
+        )
         : (
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Time</TableCell>
-                <TableCell>Event</TableCell>
-                <TableCell>Severity</TableCell>
+                <TableCell>When</TableCell>
+                <TableCell>What was seen</TableCell>
+                <TableCell>How serious</TableCell>
                 <TableCell>Session</TableCell>
               </TableRow>
             </TableHead>
@@ -112,8 +168,12 @@ export default function AuditDashboardPage() {
               {secEvents.map((s, i) => (
                 <TableRow key={s.id || i}>
                   <TableCell>{s.timestamp || s.createdAt || ''}</TableCell>
-                  <TableCell>{s.eventType || s.type || ''}</TableCell>
-                  <TableCell>{s.severity || ''}</TableCell>
+                  <TableCell>{eventLabel(s.eventType || s.type)}</TableCell>
+                  <TableCell>
+                    {s.severity
+                      ? <Chip size="small" label={s.severity} color={SEVERITY_COLOR[s.severity] || 'default'} />
+                      : ''}
+                  </TableCell>
                   <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.sessionId || ''}</TableCell>
                 </TableRow>
               ))}
@@ -121,12 +181,26 @@ export default function AuditDashboardPage() {
           </Table>
         )}
 
-      <Typography variant="h6" sx={{ mt: 3 }}>Asset Provenance</Typography>
+      <Typography variant="h6" sx={{ mt: 3 }}>History of a file</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        See everywhere a file has been: who added it, who it was passed to, and when
+        it was destroyed.
+      </Typography>
       <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-        <TextField size="small" label="Asset ID" value={provenanceId} onChange={(e) => setProvenanceId(e.target.value)} />
-        <Button variant="outlined" onClick={lookupProvenance}>Lookup</Button>
+        <TextField size="small" label="File ID" placeholder="ASSET-…" value={provenanceId} onChange={(e) => setProvenanceId(e.target.value)} />
+        <Button variant="outlined" onClick={lookupProvenance}>Show history</Button>
       </Box>
-      {provenance && <pre style={{ maxHeight: 240, overflow: 'auto' }}>{JSON.stringify(provenance, null, 2)}</pre>}
+      {provenance?.error && <Alert severity="error">{provenance.error}</Alert>}
+      {provenance && !provenance.error && (
+        <Accordion elevation={0} sx={{ border: '1px solid #e5e7eb', boxShadow: 'none' }}>
+          <AccordionSummary>
+            <Typography variant="body2">Technical details</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <pre style={{ margin: 0, maxHeight: 240, overflow: 'auto' }}>{JSON.stringify(provenance, null, 2)}</pre>
+          </AccordionDetails>
+        </Accordion>
+      )}
     </Box>
   );
 }

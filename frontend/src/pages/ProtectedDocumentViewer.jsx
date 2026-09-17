@@ -59,12 +59,19 @@ export default function ProtectedDocumentViewer() {
 
   return (
     <Box sx={{ position: 'fixed', inset: 0, bgcolor: '#fff', p: 2, overflow: 'auto' }}>
-      <Typography variant="h6">Protected Document — {info?.contentId || sessionId}</Typography>
+      <Typography variant="h6">Protected view — {info?.fileName || info?.contentId || 'file'}</Typography>
       <ProtectionStatus state={obscured ? 'CONTENT_OBSCURED' : info?.state || 'AUTHORIZED'} profile={info?.profile || 'MEDIUM'} />
       {info?.fileType && !info.fileType.startsWith('text/') && (
         <Alert severity="success" sx={{ mt: 2 }}>
-          {info.fileName || 'This file'} ({info.fileType}) streams through the
-          camera-resistant renderer with session watermarking applied.
+          {info.fileName || 'This file'} ({info.fileType}) is being shown here with your
+          personal watermark on it, so any copy can be traced back to this view.
+        </Alert>
+      )}
+      {obscured && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          The content has been hidden because this view looked like it was being
+          photographed or the window lost focus. Close other windows that might be
+          recording, then open the file again.
         </Alert>
       )}
       <Box sx={{ mt: 2 }}>
@@ -77,9 +84,9 @@ export default function ProtectedDocumentViewer() {
         />
       </Box>
       <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Button onClick={() => setChunk((value) => Math.max(0, value - 1))} disabled={chunk === 0 || loadingChunk || obscured}>Previous</Button>
-        <Typography variant="body2">Chunk {chunk + 1} of {info?.totalChunks || 1}</Typography>
-        <Button onClick={() => setChunk((value) => Math.min((info?.totalChunks || 1) - 1, value + 1))} disabled={chunk >= (info?.totalChunks || 1) - 1 || loadingChunk || obscured}>Next</Button>
+        <Button onClick={() => setChunk((value) => Math.max(0, value - 1))} disabled={chunk === 0 || loadingChunk || obscured}>Previous page</Button>
+        <Typography variant="body2">Page {chunk + 1} of {info?.totalChunks || 1}</Typography>
+        <Button onClick={() => setChunk((value) => Math.min((info?.totalChunks || 1) - 1, value + 1))} disabled={chunk >= (info?.totalChunks || 1) - 1 || loadingChunk || obscured}>Next page</Button>
         {loadingChunk && <CircularProgress size={18} />}
       </Box>
     </Box>

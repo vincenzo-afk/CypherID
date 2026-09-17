@@ -10,8 +10,10 @@ export default function ProtectionStatus({ state = 'AUTHORIZED', profile = 'MEDI
       <Chip label={`State: ${state}`} color={color} size="small" />
       <Chip label={`Profile: ${profile}`} variant="outlined" size="small" />
       <Alert severity="warning" sx={{ py: 0 }}>
-        Camera-resistant: moiré + dither + rolling-shutter bands make photos/OCR
-        unreadable. Human-readable on screen — photography/screenshots cannot be blocked.
+        This view is camera-resistant: photos and screen copies come out blurred and
+        banded, so they stay hard to read. On your screen it stays sharp. No website
+        can stop somebody photographing a screen completely — this makes the copy much
+        harder to use.
       </Alert>
     </Stack>
   );

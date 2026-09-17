@@ -1,6 +1,7 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import AppLayout from './components/AppLayout.jsx';
 import AuthGuard from './components/AuthGuard.jsx';
+import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import IdentityWalletPage from './pages/IdentityWalletPage.jsx';
@@ -20,6 +21,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<AppLayout><LoginPage /></AppLayout>} />
         <Route path="/register" element={<AppLayout><RegisterPage /></AppLayout>} />
+        <Route path="/home" element={<AppLayout><HomePage /></AppLayout>} />
         <Route path="/wallet" element={<AuthGuard><AppLayout><IdentityWalletPage /></AppLayout></AuthGuard>} />
         <Route path="/assets" element={<AuthGuard><AppLayout><AssetHubPage /></AppLayout></AuthGuard>} />
         <Route path="/access-requests" element={<AuthGuard><AppLayout><AccessRequestsPage /></AppLayout></AuthGuard>} />
@@ -29,8 +31,8 @@ export default function App() {
         <Route path="/protected/document/:sessionId" element={<AuthGuard><ProtectedDocumentViewer /></AuthGuard>} />
         <Route path="/protected/exam/:sessionId" element={<AuthGuard><ProtectedExamViewer /></AuthGuard>} />
         <Route path="/protected/video/:sessionId" element={<AuthGuard><ProtectedVideoViewer /></AuthGuard>} />
-        <Route path="/" element={<Navigate to="/wallet" replace />} />
-        <Route path="*" element={<Navigate to="/wallet" replace />} />
+        <Route path="/" element={<AppLayout><HomePage /></AppLayout>} />
+        <Route path="*" element={<AppLayout><HomePage /></AppLayout>} />
       </Routes>
     </BrowserRouter>
   );

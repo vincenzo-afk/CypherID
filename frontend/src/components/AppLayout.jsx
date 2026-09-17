@@ -1,5 +1,5 @@
 import { AppBar, Badge, Box, Button, Container, Toolbar, Typography } from '@mui/material';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../services/api.js';
@@ -10,6 +10,8 @@ const listOf = (data) => {
   return [];
 };
 
+// Plain-language navigation: non-technical labels so any visitor
+// understands where to go. Technical route paths stay unchanged.
 export default function AppLayout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -23,39 +25,52 @@ export default function AppLayout({ children }) {
   });
   const unread = listOf(data).filter((n) => !n.read).length;
   const isAdmin = (user?.roles || []).some((r) => r === 'ORG_ADMIN' || r === 'SUPER_ADMIN' || r === 'ADMIN');
+  // Hide the nav link for the page you are already on, so there is exactly one
+  // "Log in" / "Create my ID" button in the DOM at a time.
+  const { pathname } = useLocation();
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      background: 'radial-gradient(1200px 500px at 15% -5%, rgba(124,156,255,0.16), transparent 60%), radial-gradient(900px 420px at 90% 0%, rgba(34,211,238,0.12), transparent 55%), #0a0e1a'
-    }}>
-      <AppBar position="static" elevation={0} sx={{ background: 'rgba(10,14,26,0.82)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(124,156,255,0.22)' }}>
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 800, letterSpacing: 0.5 }}>
-            Cypher<span style={{ color: '#22d3ee' }}>ID</span>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar position="static" elevation={0} sx={{ background: '#ffffff', color: '#111928', borderBottom: '1px solid #e5e7eb' }}>
+        <Toolbar sx={{ gap: 0.5, flexWrap: 'wrap' }}>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 800, mr: 'auto' }}
+            component={Link}
+            to={user ? '/home' : '/'}
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            CypherID
           </Typography>
           {user ? (
             <>
-              <Button color="inherit" component={Link} to="/wallet">Wallet</Button>
-              <Button color="inherit" component={Link} to="/assets">Assets</Button>
-              <Button color="inherit" component={Link} to="/access-requests">Access</Button>
+              <Button color="inherit" component={Link} to="/home">Home</Button>
+              <Button color="inherit" component={Link} to="/wallet">My ID</Button>
+              <Button color="inherit" component={Link} to="/assets">My files</Button>
+              <Button color="inherit" component={Link} to="/access-requests">Sharing</Button>
               {isAdmin && (
-                <Button color="secondary" variant="outlined" size="small" sx={{ ml: 1 }} component={Link} to="/admin">Admin</Button>
+                <Button variant="contained" size="small" component={Link} to="/admin">Admin</Button>
               )}
-              <Button color="inherit" component={Link} to="/audit">Audit</Button>
+              <Button color="inherit" component={Link} to="/audit">Activity</Button>
               <Button color="inherit" component={Link} to="/notifications">
                 <Badge badgeContent={unread} color="error" max={99}>
-                  Notifications
+                  Alerts
                 </Badge>
               </Button>
-              <Button color="inherit" onClick={onLogout}>Logout</Button>
+              <Button color="inherit" onClick={onLogout}>Log out</Button>
             </>
           ) : (
-            <Button color="inherit" component={Link} to="/login">Login</Button>
+            <>
+              <Button color="inherit" component={Link} to="/home">What is CypherID?</Button>
+              {pathname !== '/login' && <Button color="inherit" component={Link} to="/login">Log in</Button>}
+              {pathname !== '/register' && (
+                <Button variant="contained" component={Link} to="/register">Create my ID</Button>
+              )}
+            </>
           )}
         </Toolbar>
       </AppBar>
-      <Container sx={{ mt: 3, pb: 5 }}>{children}</Container>
+      <Container maxWidth="md" sx={{ mt: 4, pb: 6 }}>{children}</Container>
     </Box>
   );
 }

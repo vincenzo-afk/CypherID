@@ -1,35 +1,33 @@
 import { createTheme } from '@mui/material/styles';
 
-// CypherID dark glass theme — deep indigo/cyan on near-black.
-// Readable on screen, hostile to cameras: low-luminance surfaces +
-// high-saturation accents alias badly on photo/OCR resample.
+// Minimalist light theme — plain, calm, non-developer friendly.
+// One accent color, lots of white space, rounded cards.
 const theme = createTheme({
   palette: {
-    mode: 'dark',
-    primary: { main: '#7c9cff' },
-    secondary: { main: '#22d3ee' },
-    error: { main: '#ff5470' },
-    warning: { main: '#ffb020' },
-    success: { main: '#34d399' },
-    background: { default: '#0a0e1a', paper: '#111831' },
-    text: { primary: '#e8ecf8', secondary: '#9aa7c7' }
+    mode: 'light',
+    primary: { main: '#1a56db' },
+    secondary: { main: '#0e9f6e' },
+    error: { main: '#c81e1e' },
+    warning: { main: '#c27803' },
+    success: { main: '#0e9f6e' },
+    background: { default: '#f7f8fc', paper: '#ffffff' },
+    text: { primary: '#111928', secondary: '#4b5563' }
   },
   typography: {
     fontFamily: 'Inter, Roboto, Arial, sans-serif',
-    h5: { fontWeight: 700, letterSpacing: 0.3 },
+    h4: { fontWeight: 700 },
+    h5: { fontWeight: 700 },
     h6: { fontWeight: 600 }
   },
-  shape: { borderRadius: 12 },
+  shape: { borderRadius: 14 },
   components: {
     MuiPaper: {
       styleOverrides: {
-        root: {
-          backgroundImage: 'linear-gradient(180deg, rgba(124,156,255,0.07), rgba(34,211,238,0.03))',
-          border: '1px solid rgba(124,156,255,0.18)'
-        }
+        root: { border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(16,24,40,0.06)' }
       }
     },
-    MuiButton: { styleOverrides: { root: { textTransform: 'none', fontWeight: 600 } } }
+    MuiButton: { styleOverrides: { root: { textTransform: 'none', fontWeight: 600, borderRadius: 10 } } },
+    MuiChip: { styleOverrides: { root: { borderRadius: 8 } } }
   }
 });
 
