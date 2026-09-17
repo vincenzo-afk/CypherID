@@ -1,218 +1,285 @@
-import { useState } from 'react';
-import {
-  Alert, Box, Button, CircularProgress, IconButton, InputAdornment, TextField, Typography
-} from '@mui/material';
+import { useRef, useState } from 'react';
+import { Alert, Box, Button, Checkbox, Divider, FormControlLabel, GlobalStyles, Typography } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { LogoMark } from '../components/Logo.jsx';
+import IdentityCore from '../components/vault/IdentityCore.jsx';
+import DataStreams from '../components/vault/DataStreams.jsx';
+import VaultField from '../components/vault/VaultField.jsx';
+import TelemetryBar from '../components/vault/TelemetryBar.jsx';
 
-// Inline SVG icons — dependency-free (no icon package).
-const BulletCheck = () => (
-  <svg viewBox="0 0 20 20" width="18" height="18" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true">
-    <circle cx="10" cy="10" r="9" fill="rgba(122,162,255,0.25)" />
-    <path d="m6 10.2 2.6 2.6L14 7.4" stroke="#8fb0ff" strokeWidth="1.8" fill="none"
-      strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-const EyeIcon = ({ off }) => (
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
-    strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" />
-    <circle cx="12" cy="12" r="2.8" />
-    {off && <path d="M4 4l16 16" />}
-  </svg>
-);
+// Digital Identity Vault — cinematic login experience.
+// Left 55%: identity-core visualization. Right 45%: integrated vault panel
+// (darkened backdrop + hairline divider, NOT a floating glass card).
+// Auth logic unchanged: useAuth().login → /wallet. No new dependencies.
 
-// ---- Decorative aurora backdrop (pure CSS, no images) -----------------------
-const AuroraBackdrop = () => (
-  <Box aria-hidden="true" sx={{
-    position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden',
-    background: 'radial-gradient(1200px 800px at 15% -10%, #12234f 0%, transparent 60%), radial-gradient(1000px 700px at 110% 20%, #0d2a55 0%, transparent 55%), radial-gradient(900px 900px at 50% 120%, #101b3a 0%, transparent 60%), #070b16'
-  }}>
-    <Box sx={{ position: 'absolute', width: 460, height: 460, top: -140, left: '8%', borderRadius: '50%', filter: 'blur(90px)', opacity: 0.5, background: 'radial-gradient(circle, #2a63f6 0%, transparent 70%)' }} />
-    <Box sx={{ position: 'absolute', width: 380, height: 380, bottom: -120, right: '6%', borderRadius: '50%', filter: 'blur(90px)', opacity: 0.4, background: 'radial-gradient(circle, #7a5cff 0%, transparent 70%)' }} />
-    <Box sx={{ position: 'absolute', width: 300, height: 300, top: '35%', right: '22%', borderRadius: '50%', filter: 'blur(110px)', opacity: 0.3, background: 'radial-gradient(circle, #00d4ff 0%, transparent 70%)' }} />
-    <Box sx={{
-      position: 'absolute', inset: 0, opacity: 0.05,
-      backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
-      backgroundSize: '44px 44px'
-    }} />
-  </Box>
-);
-
-// Floating glass input — dark, borderless, glows on focus
-function GlassField({ label, hint, type = 'text', value, onChange, autoComplete, required, endAdornment }) {
-  return (
-    <Box sx={{ mb: 2.5 }}>
-      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#aebbdd', mb: 0.8, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{label}</Typography>
-      <TextField
-        fullWidth
-        type={type} value={value} onChange={onChange} autoComplete={autoComplete} required={required}
-        variant="standard"
-        InputProps={{
-          disableUnderline: true,
-          endAdornment,
-          sx: {
-            px: 2, py: 1.4, borderRadius: 2.5,
-            bgcolor: 'rgba(255,255,255,0.055)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: '#f2f5fb',
-            transition: 'border-color .2s, box-shadow .2s, background .2s',
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
-            '&:focus-within': { borderColor: '#4d7cff', boxShadow: '0 0 0 3px rgba(77,124,255,0.22)', bgcolor: 'rgba(255,255,255,0.09)' }
-          }
-        }}
-        inputProps={{ sx: { color: '#f2f5fb', fontSize: 15 } }}
-      />
-      {hint && <Typography sx={{ fontSize: 12, color: '#7d8cae', mt: 0.7 }}>{hint}</Typography>}
-    </Box>
-  );
+const GLOBAL_CSS = `
+@keyframes vaultPulseDot {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
+@keyframes vaultBtnCheck {
+  0% { transform: scaleX(0); opacity: 0; }
+  40% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+@keyframes vaultDataSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes vaultEnter {
+  0% { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-btn-sweep, .vault-sweep-overlay { animation: none !important; display: none !important; }
+  .vault-anim-in { animation: none !important; }
+}
+`;
 
-// Login — premium dark "aurora glass" look:
-// deep-space backdrop with glowing orbs, floating glass card, gradient CTA.
+const Stages = ['ESTABLISHING SECURE CHANNEL', 'VERIFYING IDENTITY PROOF', 'GRANTING VAULT ACCESS'];
+
+const VAULT_BTN = {
+  position: 'relative', overflow: 'hidden', mt: 3.2, py: 1.5, borderRadius: 1,
+  fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', color: '#051018',
+  background: 'linear-gradient(90deg, #4cc2ff 0%, #38a6ff 100%)',
+  boxShadow: '0 6px 24px rgba(56,166,255,0.28)',
+  '&:hover': { background: 'linear-gradient(90deg, #63ccff 0%, #4cb2ff 100%)', boxShadow: '0 8px 30px rgba(56,166,255,0.4)' },
+  '&:disabled': { color: 'rgba(5,16,24,0.55)' },
+  transition: 'box-shadow .2s'
+};
+
 export default function LoginFormPage() {
   const [did, setDid] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState(0);
+  const [sweep, setSweep] = useState(false);
+  const [notice, setNotice] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const didRef = useRef(null);
+  const pwRef = useRef(null);
 
   const submit = async (e) => {
     e.preventDefault();
     if (busy) return;
     setError('');
+    setNotice('');
+    if (!did.trim()) { setError('Digital ID is required.'); didRef.current?.focus(); return; }
+    if (!password) { setError('Password is required.'); pwRef.current?.focus(); return; }
     setBusy(true);
-    try { await login(did.trim(), password); navigate('/wallet'); }
-    catch { setError('Login failed. Check your digital ID and password.'); }
-    finally { setBusy(false); }
+    setStage(0);
+    // staged security-check while the real request runs
+    const t1 = setTimeout(() => setStage(1), 420);
+    const t2 = setTimeout(() => setStage(2), 900);
+    try {
+      await login(did.trim(), password);
+      setSweep(true); // encrypted-data transition
+      setTimeout(() => navigate('/wallet'), 480);
+    } catch {
+      setError('Authentication failed. Verify your digital ID and password.');
+      setBusy(false);
+    } finally {
+      clearTimeout(t1); clearTimeout(t2);
+    }
+  };
+
+  const notEnabled = (label) => {
+    setNotice(`${label} is not enabled on this deployment — use your digital ID and password.`);
   };
 
   return (
     <Box>
-      <AuroraBackdrop />
-      <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 1040, mx: 'auto', py: { xs: 2, md: 5 } }}>
-        <Box sx={{ display: 'flex', gap: { xs: 3, md: 5 }, alignItems: 'stretch', flexDirection: { xs: 'column', md: 'row' } }}>
+      <GlobalStyles styles={GLOBAL_CSS} />
+      <DataStreams />
 
-          {/* Brand story column */}
-          <Box sx={{ flex: '1 1 46%', color: '#eef2fb', display: 'flex', flexDirection: 'column', py: { md: 3 }, pl: { md: 2 } }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
-              <LogoMark size={46} />
-              <Typography sx={{ fontWeight: 800, fontSize: 24, color: '#fff', letterSpacing: '-0.02em' }}>
-                Cypher<span style={{ color: '#7aa2ff' }}>ID</span>
-              </Typography>
-            </Box>
+      {/* encrypted-data success sweep */}
+      {sweep && (
+        <Box className="vault-sweep-overlay" aria-hidden="true" sx={{
+          position: 'fixed', inset: 0, zIndex: 50, pointerEvents: 'none',
+          background: 'linear-gradient(90deg, transparent 0%, rgba(56,166,255,0.16) 45%, rgba(5,7,13,0.98) 50%, rgba(56,166,255,0.16) 55%, transparent 100%)',
+          animation: 'vaultDataSweep 0.55s ease-in forwards'
+        }} />
+      )}
 
-            <Typography sx={{ fontWeight: 800, fontSize: { xs: 30, md: 38 }, lineHeight: 1.12, mt: 4 }}>
+      <Box sx={{
+        position: 'relative', zIndex: 1, minHeight: '100vh', display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' }, color: '#e8eefb'
+      }}>
+
+        {/* ================= LEFT 55% — identity side ================= */}
+        <Box sx={{
+          flexBasis: { md: '55%' }, display: 'flex', flexDirection: 'column',
+          px: { xs: 3, sm: 6, md: 8 }, pt: { xs: 4, md: 7 }, pb: { xs: 2, md: 6 },
+          position: 'relative', overflow: 'hidden'
+        }}>
+          <Box className="vault-anim-in" sx={{ animation: 'vaultEnter .6s ease both' }}>
+            <Typography sx={{
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              fontSize: 13, letterSpacing: '0.55em', color: '#5ecbff', userSelect: 'none'
+            }}>
+              CYPHERID
+            </Typography>
+            <Typography sx={{ fontSize: { xs: 34, md: 46 }, fontWeight: 800, lineHeight: 1.08, mt: 2.5, letterSpacing: '-0.02em' }}>
               Your identity.
-              <Box component="span" sx={{ display: 'block', background: 'linear-gradient(90deg, #7aa2ff, #00d4ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Your control.
-              </Box>
+              <Box component="span" sx={{ display: 'block', color: '#7da9e8' }}>Beyond passwords.</Box>
             </Typography>
-            <Typography sx={{ color: '#9fb0d6', mt: 1.5, fontSize: 15.5, maxWidth: 420 }}>
-              One cryptographic identity for everything you own — locked to you alone, provable to anyone, forever.
+            <Typography sx={{ mt: 2, color: '#8b9cc0', fontSize: 15.5, maxWidth: 430 }}>
+              One cryptographic identity. One private vault. Complete control.
             </Typography>
-
-            <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0, mt: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {[
-                ['Unforgeable identity', 'Key-backed DID, minted on a tamper-proof ledger'],
-                ['Total file sovereignty', 'Encrypted, watermarked, and traceable to every viewer'],
-                ['Auditable by design', 'Every grant, transfer and burn — permanent proof']
-              ].map(([t, d]) => (
-                <Box component="li" key={t} sx={{ display: 'flex', gap: 1.4, alignItems: 'flex-start' }}>
-                  <BulletCheck />
-                  <Box>
-                    <Typography sx={{ fontWeight: 700, fontSize: 14.5, color: '#e8edf9' }}>{t}</Typography>
-                    <Typography sx={{ fontSize: 13, color: '#8d9cc2' }}>{d}</Typography>
-                  </Box>
-                </Box>
-              ))}
-            </Box>
-
-            <Box sx={{ mt: 'auto', pt: 4, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#0e9f6e', boxShadow: '0 0 10px #0e9f6e' }} />
-              <Typography sx={{ fontSize: 12.5, color: '#8d9cc2' }}>Network live · Blockchain-verified</Typography>
-            </Box>
           </Box>
 
-          {/* Glass auth card */}
-          <Box
-            component="form"
-            onSubmit={submit}
-            sx={{
-              flex: '1 1 54%', maxWidth: 480, alignSelf: { md: 'center' }, width: '100%',
-              borderRadius: 5, p: { xs: 3, sm: 5 },
-              background: 'linear-gradient(160deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.035) 100%)',
-              border: '1px solid rgba(255,255,255,0.14)',
-              boxShadow: '0 30px 80px rgba(2,6,23,0.55), inset 0 1px 0 rgba(255,255,255,0.12)',
-              backdropFilter: 'blur(18px)'
-            }}
-          >
-            <Typography sx={{ fontWeight: 800, fontSize: 26, color: '#fff' }}>Welcome back</Typography>
-            <Typography sx={{ color: '#9fb0d6', mt: 0.5, fontSize: 14.5 }}>
-              Log in with your digital ID and password.
-            </Typography>
-
-            <Box sx={{ mt: 3.5 }}>
-              <GlassField
-                label="Digital ID"
-                hint="Always starts with did:cypherid: — e.g. did:cypherid:admin:root"
-                value={did} onChange={(e) => setDid(e.target.value)}
-                autoComplete="username" required
-              />
-              <GlassField
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password" required
-                endAdornment={(
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      onClick={() => setShowPassword((v) => !v)} edge="end" size="small" sx={{ color: '#8fa3c8' }}
-                    >
-                      <EyeIcon off={showPassword} />
-                    </IconButton>
-                  </InputAdornment>
-                )}
-              />
-            </Box>
-
-            {error && (
-              <Alert severity="error" sx={{
-                mt: 1, mb: 1, borderRadius: 2,
-                bgcolor: 'rgba(200,30,30,0.12)', border: '1px solid rgba(200,30,30,0.45)',
-                '& .MuiAlert-message': { color: '#ffb4b4' }, '& .MuiAlert-icon': { color: '#ff7a7a' }
-              }}>{error}</Alert>
-            )}
-
-            <Button
-              type="submit" fullWidth disabled={busy}
-              sx={{
-                mt: 2.5, py: 1.5, borderRadius: 2.5, fontSize: 15.5, fontWeight: 700,
-                color: '#fff', textTransform: 'none',
-                background: 'linear-gradient(90deg, #2a63f6 0%, #4d7cff 50%, #7a5cff 100%)',
-                boxShadow: '0 10px 30px rgba(42,99,246,0.45)',
-                '&:hover': { boxShadow: '0 14px 40px rgba(42,99,246,0.6)', transform: 'translateY(-1px)' },
-                transition: 'all .2s',
-                '&:disabled': { color: 'rgba(255,255,255,0.7)' }
-              }}
-              startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
-            >
-              {busy ? 'Logging in…' : 'Log in securely'}
-            </Button>
-
-            <Typography sx={{ mt: 2.5, textAlign: 'center', color: '#9fb0d6', fontSize: 14 }}>
-              No account yet?{' '}
-              <Link to="/register" style={{ color: '#7aa2ff', fontWeight: 700, textDecoration: 'none' }}>Create my ID</Link>
-            </Typography>
-
-            <Box sx={{ mt: 3.5, pt: 2.5, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'center' }}>
-              <Typography sx={{ fontSize: 12, color: '#6d7ea6', letterSpacing: '0.06em' }}>
-                SECURED BY FABRIC BLOCKCHAIN · AES-256 · DID:CYPHERID
+          {/* identity core visualization */}
+          <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: { xs: 'center', md: 'flex-start' }, my: { xs: 2, md: 0 } }}>
+            <Box className="vault-anim-in" sx={{ animation: 'vaultEnter .8s ease .15s both', position: 'relative' }}>
+              <IdentityCore size={400} />
+              <Typography
+                sx={{
+                  position: 'absolute', left: '50%', bottom: 6, transform: 'translateX(-50%)',
+                  whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 1.1
+                }}
+              >
+                <Box component="span" sx={{
+                  width: 6, height: 6, borderRadius: '50%', bgcolor: '#34d399',
+                  boxShadow: '0 0 8px rgba(52,211,153,0.7)', animation: 'vaultPulseDot 2.2s ease-in-out infinite'
+                }} aria-hidden="true" />
+                <Typography component="span" sx={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                  fontSize: 10, letterSpacing: '0.18em', color: '#6f83a8'
+                }}>
+                  IDENTITY NETWORK&nbsp;·&nbsp;<span style={{ color: '#34d399' }}>OPERATIONAL</span>
+                </Typography>
               </Typography>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* hairline divider between halves */}
+        <Box sx={{ display: { xs: 'none', md: 'block' }, width: '1px', my: 6, background: 'linear-gradient(180deg, transparent, rgba(90,140,220,0.35), transparent)' }} />
+
+        {/* ================= RIGHT 45% — vault panel ================= */}
+        <Box sx={{
+          flexBasis: { md: '45%' }, display: 'flex', flexDirection: 'column',
+          px: { xs: 3, sm: 6, md: 6 }, py: { xs: 3, md: 7 },
+          bgcolor: 'rgba(6,9,17,0.55)', borderLeft: { md: '1px solid rgba(90,120,180,0.16)' },
+          backdropFilter: 'blur(2px)'
+        }}>
+          <Box className="vault-anim-in" sx={{ animation: 'vaultEnter .6s ease .1s both', maxWidth: 460, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <Typography sx={{
+              fontSize: 22, fontWeight: 800, letterSpacing: '0.12em', color: '#eef4ff'
+            }}>
+              ENTER YOUR VAULT
+            </Typography>
+            <Typography sx={{ mt: 1, color: '#8b9cc0', fontSize: 14 }}>
+              Authenticate your digital identity to continue.
+            </Typography>
+
+            <Box component="form" onSubmit={submit} noValidate sx={{ mt: 4 }}>
+              <VaultField
+                name="did" label="DIGITAL ID" sublabel="DID:CYPHERID"
+                placeholder="did:cypherid:admin:root" mono
+                value={did} onChange={(e) => setDid(e.target.value)}
+                autoComplete="username" required inputRef={didRef}
+              />
+              <VaultField
+                name="password" label="PASSWORD" sublabel="AES-256"
+                type="password" placeholder="••••••••••••••••"
+                value={password} onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password" required inputRef={pwRef}
+              />
+
+              <FormControlLabel
+                sx={{ mt: 0.4, mb: 0.5, '& .MuiTypography-root': { fontSize: 13, color: '#8b9cc0' } }}
+                control={(
+                  <Checkbox
+                    size="small"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    sx={{ color: '#5d6f95', '&.Mui-checked': { color: '#38bdf8' }, p: 0.8 }}
+                  />
+                )}
+                label="Remember this device"
+              />
+
+              {error && (
+                <Alert role="alert" severity="error" sx={{
+                  mt: 1, mb: 1, borderRadius: 1, fontSize: 13,
+                  bgcolor: 'rgba(150,40,40,0.14)', border: '1px solid rgba(220,90,90,0.4)',
+                  '& .MuiAlert-message': { color: '#ffb4b4' }, '& .MuiAlert-icon': { color: '#ff8080' }
+                }}>{error}</Alert>
+              )}
+              {notice && (
+                <Alert severity="info" sx={{
+                  mt: 1, mb: 1, borderRadius: 1, fontSize: 13,
+                  bgcolor: 'rgba(40,90,150,0.12)', border: '1px solid rgba(80,150,230,0.35)',
+                  '& .MuiAlert-message': { color: '#b9d4f5' }, '& .MuiAlert-icon': { color: '#6fb1ff' }
+                }}>{notice}</Alert>
+              )}
+
+              <Button type="submit" fullWidth disabled={busy} sx={VAULT_BTN}>
+                {/* security-check sweep before submission state */}
+                {busy && <Box className="vault-btn-sweep" aria-hidden="true" sx={{
+                  position: 'absolute', inset: 0,
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)',
+                  animation: 'vaultBtnCheck 1.1s ease-in-out infinite'
+                }} />}
+                {busy ? `${Stages[stage]}…` : 'ENTER SECURELY →'}
+              </Button>
+
+              <Box sx={{ textAlign: 'center', mt: 1.6 }}>
+                <Button
+                  color="inherit" size="small"
+                  onClick={() => notEnabled('Password recovery')}
+                  sx={{ fontSize: 12.5, color: '#6f83a8', '&:hover': { color: '#9fc1e8', bgcolor: 'transparent' } }}
+                >
+                  Forgot password?
+                </Button>
+              </Box>
+
+              <Divider sx={{ my: 3 }}>
+                <Typography sx={{
+                  px: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                  fontSize: 9.5, letterSpacing: '0.22em', color: '#5d6f95'
+                }}>
+                  OR CONTINUE WITH
+                </Typography>
+              </Divider>
+
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <Button
+                  fullWidth variant="outlined"
+                  onClick={() => notEnabled('Passkey authentication')}
+                  sx={{
+                    py: 1.1, borderRadius: 1, borderColor: 'rgba(90,130,200,0.35)', color: '#c6d5ef',
+                    fontSize: 13, fontWeight: 600,
+                    '&:hover': { borderColor: 'rgba(120,170,255,0.6)', bgcolor: 'rgba(40,90,160,0.08)' }
+                  }}
+                >
+                  ⟢ Passkey
+                </Button>
+                <Button
+                  fullWidth variant="outlined"
+                  onClick={() => notEnabled('Biometric authentication')}
+                  sx={{
+                    py: 1.1, borderRadius: 1, borderColor: 'rgba(90,130,200,0.35)', color: '#c6d5ef',
+                    fontSize: 13, fontWeight: 600,
+                    '&:hover': { borderColor: 'rgba(120,170,255,0.6)', bgcolor: 'rgba(40,90,160,0.08)' }
+                  }}
+                >
+                  ◉ Biometric
+                </Button>
+              </Box>
+
+              <Typography sx={{ textAlign: 'center', mt: 3, fontSize: 13.5, color: '#8b9cc0' }}>
+                New to CypherID?{' '}
+                <Link to="/register" style={{ color: '#5ecbff', fontWeight: 700, textDecoration: 'none' }}>
+                  Create your identity →
+                </Link>
+              </Typography>
+
+              <TelemetryBar />
             </Box>
           </Box>
         </Box>

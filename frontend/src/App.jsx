@@ -19,7 +19,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<AppLayout><LoginPage /></AppLayout>} />
+        {/* Vault login renders standalone — full-viewport cinematic layout, no navbar */}
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<AppLayout><RegisterPage /></AppLayout>} />
         <Route path="/home" element={<AppLayout><HomePage /></AppLayout>} />
         <Route path="/wallet" element={<AuthGuard><AppLayout><IdentityWalletPage /></AppLayout></AuthGuard>} />
