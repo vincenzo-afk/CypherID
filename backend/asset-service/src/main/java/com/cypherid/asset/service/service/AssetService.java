@@ -169,7 +169,13 @@ public class AssetService {
             if (assetIds != null) {
                 for (String assetId : assetIds) {
                     try {
-                        result.add(toMetadataResponse(fabricClient.queryAsset(assetId)));
+                        AssetMetadataResponse meta = toMetadataResponse(fabricClient.queryAsset(assetId));
+                        // Burned assets stay in the OWNER_ASSETS index by design
+                        // (provenance); hide them from the live owner list here so
+                        // the UI never shows a burned asset as still owned.
+                        if (meta.status() != null && !"BURNED".equals(meta.status())) {
+                            result.add(meta);
+                        }
                     } catch (Exception e) {
                         logger.warn("Skipping unreadable asset {}: {}", assetId, e.getMessage());
                     }

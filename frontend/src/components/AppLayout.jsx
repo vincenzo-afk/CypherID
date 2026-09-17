@@ -22,17 +22,26 @@ export default function AppLayout({ children }) {
     refetchInterval: 30000
   });
   const unread = listOf(data).filter((n) => !n.read).length;
+  const isAdmin = (user?.roles || []).some((r) => r === 'ORG_ADMIN' || r === 'SUPER_ADMIN' || r === 'ADMIN');
 
   return (
-    <Box>
-      <AppBar position="static">
+    <Box sx={{
+      minHeight: '100vh',
+      background: 'radial-gradient(1200px 500px at 15% -5%, rgba(124,156,255,0.16), transparent 60%), radial-gradient(900px 420px at 90% 0%, rgba(34,211,238,0.12), transparent 55%), #0a0e1a'
+    }}>
+      <AppBar position="static" elevation={0} sx={{ background: 'rgba(10,14,26,0.82)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(124,156,255,0.22)' }}>
         <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>CypherID</Typography>
+          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 800, letterSpacing: 0.5 }}>
+            Cypher<span style={{ color: '#22d3ee' }}>ID</span>
+          </Typography>
           {user ? (
             <>
               <Button color="inherit" component={Link} to="/wallet">Wallet</Button>
               <Button color="inherit" component={Link} to="/assets">Assets</Button>
               <Button color="inherit" component={Link} to="/access-requests">Access</Button>
+              {isAdmin && (
+                <Button color="secondary" variant="outlined" size="small" sx={{ ml: 1 }} component={Link} to="/admin">Admin</Button>
+              )}
               <Button color="inherit" component={Link} to="/audit">Audit</Button>
               <Button color="inherit" component={Link} to="/notifications">
                 <Badge badgeContent={unread} color="error" max={99}>
@@ -46,7 +55,7 @@ export default function AppLayout({ children }) {
           )}
         </Toolbar>
       </AppBar>
-      <Container sx={{ mt: 3 }}>{children}</Container>
+      <Container sx={{ mt: 3, pb: 5 }}>{children}</Container>
     </Box>
   );
 }

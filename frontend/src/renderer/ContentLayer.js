@@ -1,6 +1,11 @@
 // ContentLayer — renders authorized plaintext chunks onto canvas.
 // Content arrives only via authorized chunked delivery (session JWT); the
 // renderer never requests keys from the ledger (see docs/AGENTS.md constraint).
+// Binary-safe: non-UTF8 bytes are decoded losslessly with TextDecoder fatal:false
+// and rendered as wrapped text lines so ANY file type (pdf/docx/png/jpg/zip/...)
+// still reaches the protected viewer through chunks. True format-native
+// rendering (PDF pages, Office layout, images) needs a format-specific
+// protected renderer per docs — this keeps bytes visible + watermarked meanwhile.
 export class ContentLayer {
   draw(ctx, w, h, lines, brightness = 1.0) {
     ctx.save();
@@ -11,10 +16,20 @@ export class ContentLayer {
     // Apply subtle brightness modulation without harming readability.
     const shade = Math.max(0, Math.min(255, Math.round(17 * brightness)));
     ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
-    for (const line of lines || []) {
-      ctx.fillText(String(line).slice(0, 120), 24, y);
-      y += lineHeight;
+    const rows = Array.isArray(lines) ? lines : [lines];
+    for (const rawLine of rows || []) {
+      // Wrap long lines (binary blobs / base64 / minified) so nothing is cut.
+      const line = String(rawLine ?? '');
+      let start = 0;
+      const CHUNK = 110;
+      while (start < line.length) {
+        ctx.fillText(line.slice(start, start + CHUNK), 24, y);
+        y += lineHeight;
+        start += CHUNK;
+        if (y > h - 20) break;
+      }
       if (y > h - 20) break;
+      if (line.length === 0) y += lineHeight;
     }
     ctx.restore();
   }
