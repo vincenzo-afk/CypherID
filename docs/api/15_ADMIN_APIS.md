@@ -8,8 +8,11 @@ are never persisted in plaintext.
 ## POST /api/v1/admin/organizations
 Register new organization (super admin only).
 
+## GET /api/v1/admin/organizations
+List registered organizations (admin only).
+
 ## PUT /api/v1/admin/users/{did}/role
-Assign/modify user role.
+Assign/modify user role. Unknown DID is 404 (not 500).
 
 ## POST /api/v1/access/emergency-override
 Emergency override (super admin only, fully audited).

@@ -16,7 +16,15 @@ const listOf = (data) => {
 export default function AppLayout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [snack, setSnack] = useState('');
   const onLogout = async () => { await logout(); navigate('/login'); };
+
+  // Global security-event toasts (viewers dispatch cypherid:toast on obscure).
+  useEffect(() => {
+    const onToast = (e) => setSnack(e?.detail || 'Security event detected.');
+    window.addEventListener('cypherid:toast', onToast);
+    return () => window.removeEventListener('cypherid:toast', onToast);
+  }, []);
 
   const { data } = useQuery({
     queryKey: ['notifications-count'],

@@ -5,7 +5,9 @@ import com.cypherid.identity.service.dto.*;
 import com.cypherid.identity.service.service.AuthenticationService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -76,7 +78,17 @@ public class AuthController {
             return ResponseEntity.status(401).build();
         }
 
-        AuthResult result = authService.refresh(refreshToken);
+        AuthResult result;
+        try {
+            result = authService.refresh(refreshToken);
+        } catch (ResponseStatusException e) {
+            // docs/api/02_AUTHENTICATION_APIS.md: 401 for invalid/expired
+            // refresh token (never leak a 500 or the token's validity state).
+            throw e;
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                    "Invalid or expired refresh token");
+        }
 
         // Rotate refresh token
         Cookie refreshCookie = new Cookie("refresh_token", result.refreshToken());

@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import BlockchainTxBadge from '../components/BlockchainTxBadge.jsx';
 
 const CLASSIFICATIONS = ['UNCLASSIFIED', 'CONFIDENTIAL', 'SECRET', 'TOP_SECRET'];
 

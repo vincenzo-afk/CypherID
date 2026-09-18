@@ -53,7 +53,7 @@ function AdminSection({ title, help, children, raw, rawLabel = 'Technical detail
 
 export default function AdminPanelPage() {
   const [msg, setMsg] = useState('');
-  const [policy, setPolicy] = useState({ resourceId: '', requiredRole: 'CLEARANCE_LEVEL_1', action: 'READ' });
+  const [policy, setPolicy] = useState({ resourceId: '', requiredRole: 'CLEARANCE_LEVEL_1', action: 'READ', abac: '' });
   const [displayId, setDisplayId] = useState('');
   const [forensic, setForensic] = useState(null);
   const [org, setOrg] = useState({ name: '', mspId: '' });

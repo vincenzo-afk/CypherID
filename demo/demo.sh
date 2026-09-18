@@ -28,12 +28,10 @@ skip()  { SKIP=$((SKIP+1)); printf '  [SKIP] %s\n' "$*"; }
 call() {
   local method="$1" path="$2" data="${3:-}"
   local auth="${AUTH_HEADER:-}"
-  if [ -n "$data" ]; then
-    RESP=$(curl -s -w '\n%{http_code}' -X "$method" "$BASE$path" \
-      -H 'Content-Type: application/json' ${auth:+-H "$auth"} -d "$data")
-  else
-    RESP=$(curl -s -w '\n%{http_code}' -X "$method" "$BASE$path" ${auth:+-H "$auth"})
-  fi
+  local args=(-s -w '\n%{http_code}' -X "$method" "$BASE$path")
+  if [ -n "$auth" ]; then args+=(-H "$auth"); fi
+  if [ -n "$data" ]; then args+=(-H 'Content-Type: application/json' -d "$data"); fi
+  RESP=$(curl "${args[@]}")
   HTTP_CODE=$(printf '%s' "$RESP" | tail -n 1)
   BODY=$(printf '%s' "$RESP" | head -n -1)
   printf '%s\n' "$BODY"
@@ -131,6 +129,7 @@ case "$SESS" in
 esac
 
 step "Minute 4 — audit trail + PDF report (docs/api/07)"
+AUTH_HEADER="Authorization: Bearer ${ARJUN_TOKEN:-missing}"
 TRAIL=$(call GET '/api/v1/audit/logs?size=5')
 case "$TRAIL" in
   *DENIED*|*GRANTED*|*content*|*events*) ok "audit trail queryable: denial → grant visible" ;;
@@ -151,7 +150,7 @@ if curl -sf -o /tmp/cypherid-audit-report.pdf \
     "$BASE/api/v1/audit/report?startDate=$START&endDate=$END"; then
   ok "PDF audit report saved to /tmp/cypherid-audit-report.pdf"
 else
-  skip "PDF report unavailable (HTTP $?)"
+  skip "PDF report unavailable (auth or service down)"
 fi
 
 step "Minute 5 — fabric health (docs/api/17)"

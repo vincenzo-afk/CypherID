@@ -16,11 +16,12 @@ Authenticate and receive JWT tokens.
 ```json
 {
   "accessToken": "eyJ...",
-  "refreshToken": "eyJ...",
   "expiresIn": 900,
   "tokenType": "Bearer"
 }
 ```
+The refresh token is delivered as an `httpOnly` cookie scoped to
+`/api/v1/auth/refresh` (never in the JSON body, never readable by JS).
 
 **Errors:** 401 (invalid credentials), 403 (DID suspended/revoked)
 

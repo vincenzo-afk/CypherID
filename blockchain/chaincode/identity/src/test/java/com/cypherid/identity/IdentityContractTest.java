@@ -229,6 +229,10 @@ class IdentityContractTest {
     // ─── Helper ───────────────────────────────────────────────────────────────
 
     private String buildDocJson(String did, String status, int version) {
+        // METADATA holds a JSON object string (e.g. {"org":"DRDO","dept":"R&D"}).
+        // DIDDocument.metadata is a String, so embed it as a JSON *string* value —
+        // escape the inner quotes exactly as Gson does when serializing the model.
+        String metadataEscaped = METADATA.replace("\\", "\\\\").replace("\"", "\\\"");
         return String.format(
             "{\"did\":\"%s\",\"publicKey\":\"%s\",\"metadata\":\"%s\",\"status\":\"%s\",\"createdAt\":\"%s\",\"updatedAt\":\"%s\",\"version\":%d}",
             did, PUBLIC_KEY, METADATA.replace("\"", "\\\""), status, TIMESTAMP, TIMESTAMP, version);

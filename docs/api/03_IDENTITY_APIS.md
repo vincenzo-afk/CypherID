@@ -23,6 +23,9 @@ Server generates the keypair and derives the DID — clients never supply key ma
   "temporaryPassword": "one-time delivery"
 }
 ```
+`privateKey` and `initialPassword` are one-time delivery: the backend stores
+only the password hash. The client must display them once and never persist
+them in plaintext.
 
 ---
 

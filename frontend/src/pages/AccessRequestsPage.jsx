@@ -2,18 +2,37 @@ import { useState } from 'react';
 import { Alert, Box, Button, Chip, Divider, Paper, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
+
+const defaultExpiry = () => new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+
+const rowsOf = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.events)) return data.events;
+  return [];
+};
 
 // Sharing: ask for a file, pass permission on for a limited time, and require
 // several people to agree before a highly sensitive file is released.
 export default function AccessRequestsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [resourceId, setResourceId] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
-  const [delegate, setDelegate] = useState({ toDID: '', resourceId: '', action: 'READ', expiresAt: '' });
+  const [delegate, setDelegate] = useState({ toDID: '', resourceId: '', action: 'READ', expiresAt: defaultExpiry() });
   const [delegateMsg, setDelegateMsg] = useState('');
   const [multisig, setMultisig] = useState({ resourceId: '', approvers: '', requestId: '', signature: '' });
   const [multisigMsg, setMultisigMsg] = useState('');
+
+  // Request history = own audit trail (real backend records, no local mocks).
+  const historyQuery = useQuery({
+    queryKey: ['access-history', user?.did],
+    queryFn: () => api.auditLogs({ did: user?.did, size: 20 }).catch(() => ({ events: [] })),
+    enabled: Boolean(user?.did)
+  });
+  const history = rowsOf(historyQuery.data);
 
   const evaluate = async () => {
     setError('');
@@ -42,6 +61,14 @@ export default function AccessRequestsPage() {
 
   const runDelegate = async () => {
     setDelegateMsg('');
+    if (!delegate.toDID.trim() || !delegate.resourceId.trim()) {
+      setDelegateMsg('Target DID and resource ID are required.');
+      return;
+    }
+    if (!delegate.expiresAt || Number.isNaN(new Date(delegate.expiresAt).getTime())) {
+      setDelegateMsg('Expiry must be a valid ISO-8601 timestamp (prefilled +24h).');
+      return;
+    }
     try {
       const res = await api.delegateAccess({
         toDID: delegate.toDID.trim(),
@@ -68,6 +95,18 @@ export default function AccessRequestsPage() {
       const res = await api.approveMultiSig(multisig.requestId.trim(), { signature: multisig.signature.trim() });
       setMultisigMsg(`Your approval is in. Status: ${res.status || 'recorded'}. Recorded as ${res.txHash || res.txId || 'saved'}.`);
     } catch (e) { setMultisigMsg(e?.response?.data?.message || 'We could not record your approval.'); }
+  };
+
+  const runRevokeDelegate = async () => {
+    setDelegateMsg('');
+    if (!delegate.toDID.trim() || !delegate.resourceId.trim()) {
+      setDelegateMsg('Target DID and resource ID are required to revoke.');
+      return;
+    }
+    try {
+      await api.revokeDelegate({ toDID: delegate.toDID.trim(), resourceId: delegate.resourceId.trim() });
+      setDelegateMsg('Delegation revoked.');
+    } catch (e) { setDelegateMsg(e?.response?.data?.message || 'Revocation failed.'); }
   };
 
   return (

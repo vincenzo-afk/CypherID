@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, CircularProgress, Paper,
   Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography
 } from '@mui/material';
 import { api } from '../services/api.js';
+import BlockchainTxBadge from '../components/BlockchainTxBadge.jsx';
 
 const rowsOf = (data) => {
   if (Array.isArray(data)) return data;
@@ -40,6 +41,30 @@ export default function AuditDashboardPage() {
   const [provenanceId, setProvenanceId] = useState('');
   const [provenance, setProvenance] = useState(null);
 
+  // Live event stream over the gateway-proxied audit WebSocket, with the
+  // 30s security-events polling below as fallback when WS is unreachable.
+  const [live, setLive] = useState([]);
+  const [wsState, setWsState] = useState('connecting');
+  useEffect(() => {
+    const token = localStorage.getItem('cypherid_access_token');
+    if (!token) { setWsState('polling'); return; }
+    const base = (import.meta.env.VITE_API_URL || window.location.origin).replace(/^http/, 'ws');
+    let ws;
+    try {
+      ws = new WebSocket(`${base}/ws/audit?access_token=${encodeURIComponent(token)}`);
+    } catch { setWsState('polling'); return; }
+    ws.onopen = () => setWsState('live');
+    ws.onmessage = (e) => {
+      try {
+        const evt = JSON.parse(e.data);
+        setLive((prev) => [evt, ...prev].slice(0, 50));
+      } catch { /* ignore malformed frames */ }
+    };
+    ws.onerror = () => setWsState('polling');
+    ws.onclose = () => setWsState((s) => (s === 'live' ? 'polling' : s));
+    return () => { try { ws.close(); } catch { /* noop */ } };
+  }, []);
+
   const { data, refetch, isFetching } = useQuery({
     queryKey: ['audit', applied],
     queryFn: () => api.auditLogs({ ...applied, size: 50 }).catch(() => ({ events: [] }))
@@ -49,9 +74,15 @@ export default function AuditDashboardPage() {
   const secQuery = useQuery({
     queryKey: ['audit-sec-events'],
     queryFn: () => api.securityEvents().catch(() => []),
-    refetchInterval: 30000
+    refetchInterval: wsState === 'live' ? false : 30000
   });
   const secEvents = rowsOf(secQuery.data);
+
+  const eventColor = (e) => {
+    if (e.decision === 'GRANTED' || e.severity === 'LOW') return 'success.main';
+    if (e.decision === 'DENIED' || e.severity === 'HIGH' || e.severity === 'CRITICAL') return 'error.main';
+    return 'warning.main';
+  };
 
   const download = async () => {
     try {
@@ -162,6 +193,7 @@ export default function AuditDashboardPage() {
                 <TableCell>What was seen</TableCell>
                 <TableCell>How serious</TableCell>
                 <TableCell>Session</TableCell>
+                <TableCell>Tx</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -175,6 +207,7 @@ export default function AuditDashboardPage() {
                       : ''}
                   </TableCell>
                   <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.sessionId || ''}</TableCell>
+                  <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.txHash || s.txId || ''}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

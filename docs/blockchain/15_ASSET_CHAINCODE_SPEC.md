@@ -12,26 +12,30 @@
 ## Transactions
 
 ### mintAsset (SUBMIT)
-Parameters: `assetId`, `ownerDID`, `ipfsHash`, `classification`, `policyId`, `nonce`, `timestamp`
-- Verifies ownerDID is active (calls IdentityContract)
-- Verifies assetId does not exist
+Parameters: `assetId`, `ownerDID`, `ipfsHash`, `classification`, `policyId`, `fileName`, `fileType`, `fileSizeBytes`, `nonce`, `timestamp`
+- Verifies assetId does not exist and ownerDID format
+- Cross-contract owner-ACTIVE verification is not yet wired (documented
+  limitation — ownership checks are prefix + local validation)
 - Creates Asset record
 - Updates owner's asset list
 - Emits `AssetMinted` event
 
 ### transferAsset (SUBMIT)
 Parameters: `assetId`, `fromDID`, `toDID`, `ownerSignature`, `nonce`, `timestamp`
-- Verifies fromDID owns asset
-- Verifies ownerSignature
-- Verifies toDID is active and has required clearance (calls AccessControlContract)
-- Updates ownership
+- Verifies fromDID owns asset and asset is ACTIVE
+- Verifies ownerSignature presence (cryptographic validity is the
+  client/security layer's responsibility — see AssetService docs)
+- Updates ownership, keeps status ACTIVE (provenance is the ledger history,
+  not a TRANSFERRED state — see docs/assets/03_ASSET_LIFECYCLE.md)
+- Updates both owner indices
 - Emits `AssetTransferred` event
 
 ### burnAsset (SUBMIT)
 Parameters: `assetId`, `ownerDID`, `ownerSignature`, `nonce`, `timestamp`
 - Verifies ownership and signature
-- Sets asset status to BURNED
-- Records burn timestamp (proof of deletion intent)
+- Sets asset status to BURNED, records burn time in the `AssetBurned` event
+- Removes the asset from the owner's live index (`queryOwnerAssets` excludes
+  burned assets; ledger history keeps the provenance chain)
 - Emits `AssetBurned` event
 
 ### queryAsset (EVALUATE)
@@ -40,7 +44,7 @@ Parameters: `assetId`
 
 ### queryOwnerAssets (EVALUATE)
 Parameters: `ownerDID`
-- Returns list of asset IDs owned by DID
+- Returns live list of asset IDs owned by DID (burned assets excluded)
 
 ### getAssetHistory (EVALUATE)
 Parameters: `assetId`
@@ -54,7 +58,10 @@ Parameters: `assetId`
   "ipfsHash": "Qm...",
   "classification": "TOP_SECRET|SECRET|CONFIDENTIAL|UNCLASSIFIED",
   "policyId": "...",
-  "status": "ACTIVE|TRANSFERRED|BURNED",
+  "fileName": "...",
+  "fileType": "...",
+  "fileSizeBytes": "...",
+  "status": "ACTIVE|BURNED",
   "createdAt": "ISO-8601",
   "updatedAt": "ISO-8601"
 }
