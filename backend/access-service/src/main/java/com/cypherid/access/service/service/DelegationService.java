@@ -1,6 +1,7 @@
 package com.cypherid.access.service.service;
 
 import com.cypherid.access.service.domain.DelegationEntity;
+import com.cypherid.access.service.dto.DelegationListItemResponse;
 import com.cypherid.access.service.dto.DelegationResponse;
 import com.cypherid.access.service.exception.FabricUnavailableException;
 import com.cypherid.access.service.fabric.FabricAccessClient;
@@ -68,6 +69,22 @@ public class DelegationService {
 
         logger.info("Access delegated from {} to {} for resource {}", fromDid, toDid, resourceId);
         return new DelegationResponse(fromDid, toDid, resourceId, action, expiresAt, "DELEGATED");
+    }
+
+    /**
+     * Lists a DID's delegation history (outgoing = granted by them,
+     * incoming = granted to them). Includes revoked rows for honest counts.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<DelegationListItemResponse> listForDid(String did, String direction) {
+        java.util.List<DelegationEntity> rows = "incoming".equalsIgnoreCase(direction)
+                ? delegationRepository.findByToDidOrderByCreatedAtDesc(did)
+                : delegationRepository.findByFromDidOrderByCreatedAtDesc(did);
+        return rows.stream()
+                .map(e -> new DelegationListItemResponse(
+                        e.getFromDid(), e.getToDid(), e.getResourceId(),
+                        e.getAction(), e.getExpiresAt(), e.isActive(), e.getCreatedAt()))
+                .toList();
     }
 
     /**

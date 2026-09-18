@@ -145,6 +145,8 @@ export const api = {
   updatePolicy: (policyId, body) =>
     apiClient.put(`/api/v1/access/policies/${encodeURIComponent(policyId)}`, body).then((r) => r.data),
   delegateAccess: (body) => apiClient.post('/api/v1/access/delegate', body).then((r) => r.data),
+  listDelegations: (direction = 'outgoing') =>
+    apiClient.get('/api/v1/access/delegations', { params: { direction } }).then((r) => r.data),
   revokeDelegate: (body) => apiClient.put('/api/v1/access/delegate/revoke', body).then((r) => r.data),
   createMultiSig: (body) => apiClient.post('/api/v1/access/multisig', body).then((r) => r.data),
   approveMultiSig: (requestId, body) =>

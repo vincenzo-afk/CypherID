@@ -128,6 +128,19 @@ public class AccessController {
     }
 
     /**
+     * GET /api/v1/access/delegations?direction=outgoing|incoming — the caller's
+     * own delegation history (active and revoked). The DID comes from the
+     * gateway's verified X-User-DID header, so users can only list their own.
+     */
+    @GetMapping("/delegations")
+    public ResponseEntity<java.util.List<DelegationListItemResponse>> listDelegations(
+            @RequestHeader("X-User-DID") String callerDid,
+            @RequestParam(name = "direction", defaultValue = "outgoing") String direction) {
+
+        return ResponseEntity.ok(delegationService.listForDid(callerDid, direction));
+    }
+
+    /**
      * PUT /api/v1/access/delegate/revoke — revoke a delegation.
      */
     @PutMapping("/delegate/revoke")

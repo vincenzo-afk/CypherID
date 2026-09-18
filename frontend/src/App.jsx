@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import IdentityWalletPage from './pages/IdentityWalletPage.jsx';
 import AssetHubPage from './pages/AssetHubPage.jsx';
 import AccessRequestsPage from './pages/AccessRequestsPage.jsx';
+import AccessCenterPage from './pages/AccessCenterPage.jsx';
 import AdminPanelPage from './pages/AdminPanelPage.jsx';
 import AuditDashboardPage from './pages/AuditDashboardPage.jsx';
 import NotificationsPage from './pages/NotificationsPage.jsx';
@@ -25,10 +26,10 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/home" element={<CommandCenter><HomePage /></CommandCenter>} />
         <Route path="/wallet" element={<AuthGuard><CommandCenter><IdentityWalletPage /></CommandCenter></AuthGuard>} />
-        <Route path="/assets" element={<AuthGuard><AppLayout><AssetHubPage /></AppLayout></AuthGuard>} />
-        <Route path="/access-requests" element={<AuthGuard><AppLayout><AccessRequestsPage /></AppLayout></AuthGuard>} />
+        <Route path="/assets" element={<AuthGuard><CommandCenter><AssetHubPage /></CommandCenter></AuthGuard>} />
+        <Route path="/access-requests" element={<AuthGuard><CommandCenter><AccessCenterPage /></CommandCenter></AuthGuard>} />
         <Route path="/admin" element={<AuthGuard roles={['ORG_ADMIN']}><AppLayout><AdminPanelPage /></AppLayout></AuthGuard>} />
-        <Route path="/audit" element={<AuthGuard roles={['SYSTEM_AUDITOR', 'ORG_ADMIN']}><AppLayout><AuditDashboardPage /></AppLayout></AuthGuard>} />
+        <Route path="/audit" element={<AuthGuard roles={['SYSTEM_AUDITOR', 'ORG_ADMIN']}><CommandCenter><AuditDashboardPage /></CommandCenter></AuthGuard>} />
         <Route path="/notifications" element={<AuthGuard><AppLayout><NotificationsPage /></AppLayout></AuthGuard>} />
         <Route path="/protected/document/:sessionId" element={<AuthGuard><ProtectedDocumentViewer /></AuthGuard>} />
         <Route path="/protected/exam/:sessionId" element={<AuthGuard><ProtectedExamViewer /></AuthGuard>} />

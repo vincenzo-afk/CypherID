@@ -15,4 +15,10 @@ public interface DelegationRepository extends JpaRepository<DelegationEntity, UU
 
     Optional<DelegationEntity> findByFromDidAndToDidAndResourceIdAndActiveTrue(
             String fromDid, String toDid, String resourceId);
+
+    // Full grant history in both directions (active and revoked) so the
+    // Access Center can show real REVOKED counts without inventing data.
+    java.util.List<DelegationEntity> findByFromDidOrderByCreatedAtDesc(String fromDid);
+
+    java.util.List<DelegationEntity> findByToDidOrderByCreatedAtDesc(String toDid);
 }
