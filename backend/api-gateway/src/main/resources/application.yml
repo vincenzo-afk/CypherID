@@ -31,7 +31,25 @@ spring:
         - AddResponseHeader=X-Request-ID, ${spring.application.name}
 
       routes:
-        # Auth routes — no JWT required
+        # /auth/me — session lookup. Carries the user's bearer token, so it MUST
+        # pass JwtAuthFilter to receive X-User-DID / X-User-Roles headers; the
+        # identity service requires them. Precedes auth-login (first match wins)
+        # — otherwise /me falls into the public route, arrives headerless, 500s.
+        - id: auth-me
+          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
+          predicates:
+            - Path=/api/v1/auth/me
+            - Method=GET
+          filters:
+            - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@didKeyResolver}"
+
+        # Auth routes — no JWT required (login/refresh/logout carry their own
+        # credentials: password, refresh cookie, bearer token respectively)
         - id: auth-login
           uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
           predicates:
