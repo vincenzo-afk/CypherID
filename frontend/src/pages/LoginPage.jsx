@@ -179,13 +179,13 @@ export default function LoginFormPage() {
             <Box component="form" onSubmit={submit} noValidate sx={{ mt: 4 }}>
               <VaultField
                 name="did" label="DIGITAL ID" sublabel="DID:CYPHERID"
-                placeholder="did:cypherid:admin:root" mono
+                mono
                 value={did} onChange={(e) => setDid(e.target.value)}
                 autoComplete="username" required inputRef={didRef}
               />
               <VaultField
                 name="password" label="PASSWORD" sublabel="AES-256"
-                type="password" placeholder="••••••••••••••••"
+                type="password"
                 value={password} onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password" required inputRef={pwRef}
               />
