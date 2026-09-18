@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import AppLayout from './components/AppLayout.jsx';
+import CommandCenter from './components/CommandCenter.jsx';
 import AuthGuard from './components/AuthGuard.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -19,10 +20,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Vault login renders standalone — full-viewport cinematic layout, no navbar */}
+        {/* Vault login + identity genesis register render standalone — full-viewport cinematic layouts, no navbar */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<AppLayout><RegisterPage /></AppLayout>} />
-        <Route path="/home" element={<AppLayout><HomePage /></AppLayout>} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/home" element={<CommandCenter><HomePage /></CommandCenter>} />
         <Route path="/wallet" element={<AuthGuard><AppLayout><IdentityWalletPage /></AppLayout></AuthGuard>} />
         <Route path="/assets" element={<AuthGuard><AppLayout><AssetHubPage /></AppLayout></AuthGuard>} />
         <Route path="/access-requests" element={<AuthGuard><AppLayout><AccessRequestsPage /></AppLayout></AuthGuard>} />
@@ -32,8 +33,8 @@ export default function App() {
         <Route path="/protected/document/:sessionId" element={<AuthGuard><ProtectedDocumentViewer /></AuthGuard>} />
         <Route path="/protected/exam/:sessionId" element={<AuthGuard><ProtectedExamViewer /></AuthGuard>} />
         <Route path="/protected/video/:sessionId" element={<AuthGuard><ProtectedVideoViewer /></AuthGuard>} />
-        <Route path="/" element={<AppLayout><HomePage /></AppLayout>} />
-        <Route path="*" element={<AppLayout><HomePage /></AppLayout>} />
+        <Route path="/" element={<CommandCenter><HomePage /></CommandCenter>} />
+        <Route path="*" element={<CommandCenter><HomePage /></CommandCenter>} />
       </Routes>
     </BrowserRouter>
   );

@@ -31,7 +31,7 @@ const EyeIcon = ({ off }) => (
 );
 
 export default function VaultField({
-  label, sublabel, type = 'text', value, onChange,
+  label, sublabel, helperText, type = 'text', value, onChange,
   autoComplete, required, error, mono = false, placeholder, inputRef, name
 }) {
   const [focused, setFocused] = useState(false);
@@ -131,7 +131,9 @@ export default function VaultField({
 
       {error ? (
         <Typography role="alert" sx={{ fontSize: 12, color: '#ff9d9d', mt: 0.8 }}>{error}</Typography>
-      ) : sublabel ? null : null}
+      ) : helperText ? (
+        <Typography sx={{ fontSize: 11.5, color: '#6f83a8', mt: 0.8, pl: 0.2 }}>{helperText}</Typography>
+      ) : null}
     </Box>
   );
 }
