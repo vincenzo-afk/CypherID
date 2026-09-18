@@ -1,7 +1,7 @@
 package com.cypherid.access;
 
 import java.time.Instant;
-import java.util.List;
+import java.util.Iterator;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
@@ -106,8 +106,10 @@ class AccessControlContractTest {
     @SuppressWarnings("unchecked")
     void evaluateAccess_noPolicy() {
         QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        Iterator<KeyValue> results = mock(Iterator.class);
         when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
-        when(iterator.iterator()).thenReturn(List.<KeyValue>of().iterator());
+        when(iterator.iterator()).thenReturn(results);
+        when(results.hasNext()).thenReturn(false);
 
         String decision = contract.evaluateAccess(ctx, USER_DID, RESOURCE_ID, "READ",
                 "{\"department\":\"DRDO\"}", "VALID,CLEARANCE_LEVEL_3", TIMESTAMP);
@@ -121,9 +123,12 @@ class AccessControlContractTest {
     @SuppressWarnings("unchecked")
     void evaluateAccess_granted() {
         QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        Iterator<KeyValue> results = mock(Iterator.class);
         KeyValue kv = mock(KeyValue.class);
         when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
-        when(iterator.iterator()).thenReturn(List.of(kv).iterator());
+        when(iterator.iterator()).thenReturn(results);
+        when(results.hasNext()).thenReturn(true, false);
+        when(results.next()).thenReturn(kv);
         when(kv.getStringValue()).thenReturn(policyJson("CLEARANCE_LEVEL_3", "{\"department\":\"DRDO\"}"));
 
         String decision = contract.evaluateAccess(ctx, USER_DID, RESOURCE_ID, "READ",
@@ -138,9 +143,12 @@ class AccessControlContractTest {
     @SuppressWarnings("unchecked")
     void evaluateAccess_badClearance() {
         QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        Iterator<KeyValue> results = mock(Iterator.class);
         KeyValue kv = mock(KeyValue.class);
         when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
-        when(iterator.iterator()).thenReturn(List.of(kv).iterator());
+        when(iterator.iterator()).thenReturn(results);
+        when(results.hasNext()).thenReturn(true, false);
+        when(results.next()).thenReturn(kv);
         when(kv.getStringValue()).thenReturn(policyJson("CLEARANCE_LEVEL_3", "{}"));
 
         String decision = contract.evaluateAccess(ctx, USER_DID, RESOURCE_ID, "READ",
@@ -155,9 +163,12 @@ class AccessControlContractTest {
     @SuppressWarnings("unchecked")
     void evaluateAccess_abacMismatch() {
         QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        Iterator<KeyValue> results = mock(Iterator.class);
         KeyValue kv = mock(KeyValue.class);
         when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
-        when(iterator.iterator()).thenReturn(List.of(kv).iterator());
+        when(iterator.iterator()).thenReturn(results);
+        when(results.hasNext()).thenReturn(true, false);
+        when(results.next()).thenReturn(kv);
         when(kv.getStringValue()).thenReturn(policyJson("CLEARANCE_LEVEL_3", "{\"department\":\"DRDO\"}"));
 
         String decision = contract.evaluateAccess(ctx, USER_DID, RESOURCE_ID, "READ",
@@ -172,9 +183,12 @@ class AccessControlContractTest {
     @SuppressWarnings("unchecked")
     void evaluateAccess_invalidSubstringDoesNotGrant() {
         QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        Iterator<KeyValue> results = mock(Iterator.class);
         KeyValue kv = mock(KeyValue.class);
         when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
-        when(iterator.iterator()).thenReturn(List.of(kv).iterator());
+        when(iterator.iterator()).thenReturn(results);
+        when(results.hasNext()).thenReturn(true, false);
+        when(results.next()).thenReturn(kv);
         when(kv.getStringValue()).thenReturn(policyJson("CLEARANCE_LEVEL_3", "{}"));
 
         // "NOT_VALID" contains "VALID" — must still be rejected
@@ -190,9 +204,12 @@ class AccessControlContractTest {
     @SuppressWarnings("unchecked")
     void evaluateAccess_jsonFormGranted() {
         QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        Iterator<KeyValue> results = mock(Iterator.class);
         KeyValue kv = mock(KeyValue.class);
         when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
-        when(iterator.iterator()).thenReturn(List.of(kv).iterator());
+        when(iterator.iterator()).thenReturn(results);
+        when(results.hasNext()).thenReturn(true, false);
+        when(results.next()).thenReturn(kv);
         when(kv.getStringValue()).thenReturn(policyJson("CLEARANCE_LEVEL_3", "{}"));
 
         String decision = contract.evaluateAccess(ctx, USER_DID, RESOURCE_ID, "READ",
@@ -206,9 +223,12 @@ class AccessControlContractTest {
     @SuppressWarnings("unchecked")
     void evaluateAccess_roleSubstringDoesNotGrant() {
         QueryResultsIterator<KeyValue> iterator = mock(QueryResultsIterator.class);
+        Iterator<KeyValue> results = mock(Iterator.class);
         KeyValue kv = mock(KeyValue.class);
         when(stub.getStateByRange(anyString(), anyString())).thenReturn(iterator);
-        when(iterator.iterator()).thenReturn(List.of(kv).iterator());
+        when(iterator.iterator()).thenReturn(results);
+        when(results.hasNext()).thenReturn(true, false);
+        when(results.next()).thenReturn(kv);
         when(kv.getStringValue()).thenReturn(policyJson("ADMIN", "{}"));
 
         String decision = contract.evaluateAccess(ctx, USER_DID, RESOURCE_ID, "READ",

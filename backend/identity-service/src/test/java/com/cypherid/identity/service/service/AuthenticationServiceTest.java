@@ -34,11 +34,15 @@ class AuthenticationServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private org.springframework.data.redis.core.StringRedisTemplate redis;
+
     private AuthenticationService service;
 
     @BeforeEach
     void setUp() {
-        service = new AuthenticationService(userRepository, passwordEncoder, jwtService);
+        service = new AuthenticationService(userRepository, passwordEncoder, jwtService, redis);
+        lenient().when(redis.hasKey(anyString())).thenReturn(false);
     }
 
     private User activeUser(String status, String clearance) {

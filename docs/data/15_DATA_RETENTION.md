@@ -16,8 +16,8 @@ Access logs, DID history, asset provenance: retained indefinitely.
 ## Redis
 | Key Type | TTL |
 |:---|:---|
-| Access JWT | Token expiry (15 min) |
-| Refresh JWT | 7 days |
+| Access JWT blacklist (JTI) | Remaining access-token TTL (5h max) |
+| Refresh JWT | 24 hours |
 | Session state | Session expiry |
 | Rate limit counters | 1 minute rolling window |
 | JWT blacklist | Original token TTL remainder |

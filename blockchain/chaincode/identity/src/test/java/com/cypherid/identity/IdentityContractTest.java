@@ -235,6 +235,6 @@ class IdentityContractTest {
         String metadataEscaped = METADATA.replace("\\", "\\\\").replace("\"", "\\\"");
         return String.format(
             "{\"did\":\"%s\",\"publicKey\":\"%s\",\"metadata\":\"%s\",\"status\":\"%s\",\"createdAt\":\"%s\",\"updatedAt\":\"%s\",\"version\":%d}",
-            did, PUBLIC_KEY, metadataEscaped, status, TIMESTAMP, TIMESTAMP, version);
+            did, PUBLIC_KEY, METADATA.replace("\"", "\\\""), status, TIMESTAMP, TIMESTAMP, version);
     }
 }

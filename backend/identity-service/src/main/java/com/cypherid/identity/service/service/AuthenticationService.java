@@ -2,6 +2,7 @@ package com.cypherid.identity.service.service;
 
 import com.cypherid.identity.service.domain.User;
 import com.cypherid.identity.service.dto.AuthResult;
+import com.cypherid.identity.service.exception.AuthenticationException;
 import com.cypherid.identity.service.repository.UserRepository;
 import com.cypherid.identity.service.security.JwtService;
 import org.slf4j.Logger;
@@ -62,44 +63,48 @@ public class AuthenticationService {
     public AuthResult authenticate(String did, String password, String nonce) {
         // Brute-force protection: reject while the DID is locked out
         // (docs/security/06_AUTHENTICATION_SECURITY.md).
-        requireNotLocked(did);
+        String normalizedDid = did == null ? "" : did.trim();
+        requireNotLocked(normalizedDid);
+        final String loginDid = normalizedDid;
 
-        User user = userRepository.findByDid(did)
+        User user = userRepository.findByDid(loginDid)
                 .orElseThrow(() -> {
-                    logger.warn("Login failed: DID not found: {}", did);
-                    // docs/api/02_AUTHENTICATION_APIS.md: 401 for invalid credentials.
-                    // ResponseStatusException is resolved natively by Spring
-                    // (see GlobalExceptionHandler) — must not leak a 500.
-                    return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+                    logger.warn("Login failed: DID not found: {}", loginDid);
+                    recordFailedAttempt(loginDid);
+                    return new AuthenticationException(HttpStatus.UNAUTHORIZED,
+                            "INVALID_CREDENTIALS", "Invalid credentials");
                 });
 
         // Check DID status — docs/api/02_AUTHENTICATION_APIS.md: 403 suspended/revoked
         if ("REVOKED".equals(user.getStatus())) {
-            logger.warn("Login denied: DID REVOKED: {}", did);
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "DID is revoked");
+            logger.warn("Login denied: DID REVOKED: {}", loginDid);
+            throw new AuthenticationException(HttpStatus.FORBIDDEN,
+                    "DID_REVOKED", "DID is revoked");
         }
         if ("SUSPENDED".equals(user.getStatus())) {
-            logger.warn("Login denied: DID SUSPENDED: {}", did);
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "DID is suspended");
+            logger.warn("Login denied: DID SUSPENDED: {}", loginDid);
+            throw new AuthenticationException(HttpStatus.FORBIDDEN,
+                    "DID_SUSPENDED", "DID is suspended");
         }
 
         // Verify password
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            logger.warn("Login failed: wrong password for DID: {}", did);
-            recordFailedAttempt(did);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+            logger.warn("Login failed: wrong password for DID: {}", loginDid);
+            recordFailedAttempt(loginDid);
+            throw new AuthenticationException(HttpStatus.UNAUTHORIZED,
+                    "INVALID_CREDENTIALS", "Invalid credentials");
         }
 
         // Successful login resets the failed-attempt counter
-        clearFailedAttempts(did);
+        clearFailedAttempts(loginDid);
 
         // Build roles list from clearance level
         List<String> roles = buildRoles(user);
 
-        String accessToken  = jwtService.issueAccessToken(did, user.getOrganization(), roles);
-        String refreshToken = jwtService.issueRefreshToken(did);
+        String accessToken  = jwtService.issueAccessToken(loginDid, user.getOrganization(), roles);
+        String refreshToken = jwtService.issueRefreshToken(loginDid);
 
-        logger.info("Login successful for DID: {} org: {}", did, user.getOrganization());
+        logger.info("Login successful for DID: {} org: {}", loginDid, user.getOrganization());
 
         return new AuthResult(
                 accessToken,
@@ -115,12 +120,13 @@ public class AuthenticationService {
         String did = jwtService.validateRefreshToken(refreshToken);
 
         User user = userRepository.findByDid(did)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                        "Invalid or expired refresh token"));
+                .orElseThrow(() -> new AuthenticationException(HttpStatus.UNAUTHORIZED,
+                        "INVALID_TOKEN", "User not found for refresh token"));
 
         if (!"ACTIVE".equals(user.getStatus())) {
             jwtService.revokeRefreshToken(refreshToken);
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "DID is no longer active");
+            throw new AuthenticationException(HttpStatus.FORBIDDEN,
+                    "DID_INACTIVE", "DID is no longer active");
         }
 
         List<String> roles = buildRoles(user);
@@ -210,22 +216,24 @@ public class AuthenticationService {
         String clearance = user.getClearanceLevel();
         if (clearance == null) clearance = "UNCLASSIFIED";
 
-        // Administrative roles are assigned via PUT /api/v1/admin/users/{did}/role
-        // and stored in the same clearance_level column (AdminController role
-        // anchor, docs/api/15_ADMIN_APIS.md + docs/access-control/02_RBAC_MODEL.md).
-        // They MUST be carried into the JWT — otherwise ORG_ADMIN / SUPER_ADMIN /
-        // SYSTEM_AUDITOR would be silently dropped and every admin endpoint and
-        // the /admin + /audit pages would be permanently unreachable.
-        List<String> base = switch (clearance) {
-            case "ORG_ADMIN"     -> List.of("ORG_ADMIN", "CLEARANCE_LEVEL_4", "TOP_SECRET", "SECRET", "CONFIDENTIAL", "UNCLASSIFIED");
-            case "SUPER_ADMIN"   -> List.of("SUPER_ADMIN", "ORG_ADMIN", "CLEARANCE_LEVEL_5", "TOP_SECRET", "SECRET", "CONFIDENTIAL", "UNCLASSIFIED");
-            case "SYSTEM_AUDITOR"-> List.of("SYSTEM_AUDITOR", "CLEARANCE_LEVEL_1", "UNCLASSIFIED");
-            case "SYSTEM_OPERATOR" -> List.of("SYSTEM_OPERATOR", "CLEARANCE_LEVEL_1", "UNCLASSIFIED");
-            case "TOP_SECRET"    -> List.of("TOP_SECRET", "SECRET", "CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_4");
-            case "SECRET"        -> List.of("SECRET", "CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_3");
-            case "CONFIDENTIAL"  -> List.of("CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_2");
-            default              -> List.of("UNCLASSIFIED", "CLEARANCE_LEVEL_1");
+        // NOTE: "SUPER_ADMIN" and "ORG_ADMIN" are administrative roles, not
+        // classification levels, but they are stored in the same clearance_level
+        // column (docs/access-control/02_RBAC_MODEL.md) and must be recognized
+        // here — every *AdminController / requireAdminRole check across the
+        // services does roles.contains("ADMIN") / roles.contains("SUPER_ADMIN")
+        // against exactly this list. Before this fix neither value was ever
+        // produced, so no account — however configured — could reach any admin
+        // endpoint. Admins also get full clearance so classified content checks
+        // never block administrative actions.
+        return switch (clearance) {
+            case "SUPER_ADMIN"  -> List.of("SUPER_ADMIN", "ORG_ADMIN", "TOP_SECRET", "SECRET", "CONFIDENTIAL",
+                                            "UNCLASSIFIED", "CLEARANCE_LEVEL_5", "CLEARANCE_LEVEL_4");
+            case "ORG_ADMIN"    -> List.of("ORG_ADMIN", "TOP_SECRET", "SECRET", "CONFIDENTIAL", "UNCLASSIFIED",
+                                            "CLEARANCE_LEVEL_4");
+            case "TOP_SECRET"   -> List.of("TOP_SECRET", "SECRET", "CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_4");
+            case "SECRET"       -> List.of("SECRET", "CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_3");
+            case "CONFIDENTIAL" -> List.of("CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_2");
+            default             -> List.of("UNCLASSIFIED", "CLEARANCE_LEVEL_1");
         };
-        return List.copyOf(base);
     }
 }

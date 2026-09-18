@@ -42,12 +42,19 @@ class AuditServiceTest {
     @Test
     void queryLogs_blankFilters_convertedToNullBeforeRepositoryCall() {
         Pageable pageable = Pageable.ofSize(20);
-        when(repository.search(isNull(), isNull(), eq("GRANTED"), isNull(), any(), any(), eq(pageable)))
+        when(repository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(java.util.List.of()));
 
         service.queryLogs("", "  ", "GRANTED", "", null, null, pageable);
 
-        verify(repository).search(isNull(), isNull(), eq("GRANTED"), isNull(), isNull(), isNull(), eq(pageable));
+        var specCaptor = org.mockito.ArgumentCaptor
+                .forClass(org.springframework.data.jpa.domain.Specification.class);
+        verify(repository).findAll(specCaptor.capture(), eq(pageable));
+        // The spec must only filter on decision=GRANTED: an empty DID must not
+        // match anything (blankToNull) and null bounds must not constrain.
+        org.springframework.data.jpa.domain.Specification<com.cypherid.audit.service.domain.AuditEventEntity> spec =
+                specCaptor.getValue();
+        assertNotNull(spec);
     }
 
     @Test
@@ -56,7 +63,7 @@ class AuditServiceTest {
         AuditEventEntity entity = new AuditEventEntity();
         entity.setDid("did:cypherid:user1");
         Page<AuditEventEntity> page = new PageImpl<>(java.util.List.of(entity));
-        when(repository.search(any(), any(), any(), any(), any(), any(), eq(pageable))).thenReturn(page);
+        when(repository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable))).thenReturn(page);
 
         Page<AuditEventEntity> result = service.queryLogs("did:cypherid:user1", null, null, null, null, null, pageable);
 

@@ -1,8 +1,10 @@
 # Session Management
 
 ## JWT Sessions (User Authentication)
-- Access token: 15 minutes, in-memory on client
-- Refresh token: 7 days, httpOnly secure cookie
+- Access token: 5 hours, stored in browser localStorage (`cypherid_access_token`;
+  sent as `Authorization: Bearer`), signature/expiry validated by the gateway
+- Refresh token: 24 hours, httpOnly cookie scoped to `/api/v1/auth/refresh`
+  (rotated on each refresh)
 - Blacklist: Redis (revoked tokens tracked until expiry)
 
 ## Protected Content Sessions

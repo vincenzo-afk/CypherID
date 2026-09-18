@@ -1,12 +1,11 @@
 package com.cypherid.identity.service.exception;
 
-import java.util.Map;
-
 /**
- * ApiError — documented error body per docs/api/18_ERROR_RESPONSE_MODEL.md.
+ * ApiError — error body following docs/api/18_ERROR_RESPONSE_MODEL.md
+ * and docs/api/01_API_CONVENTIONS.md.
  */
 public record ApiError(
     String code,
     String message,
-    Map<String, Object> details
+    java.util.Map<String, Object> details
 ) {}

@@ -3,7 +3,7 @@
 ## Key Inventory
 | Key | Location | Rotation |
 |:---|:---|:---|
-| JWT RS256 signing key | Docker secret | 90 days |
+| JWT HS256 signing secret | Docker secret / env `JWT_SECRET` | 90 days |
 | Session HMAC key | Docker secret | 30 days |
 | Master encryption key | Docker secret / HSM | 180 days |
 | Asset AES-256 keys | PostgreSQL (wrapped) | On key rotation |
