@@ -106,7 +106,7 @@ export default function RegisterPage() {
       setResult(res);
       setDone(true);
     } catch (err) {
-      setError(err?.response?.data?.message || 'We could not create your ID. Please try again.');
+      setError(err?.response?.data?.message || err?.friendlyMessage || 'We could not create your ID. Please try again.');
     } finally {
       clearTimeout(t1); clearTimeout(t2);
       setBusy(false);

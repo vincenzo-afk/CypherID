@@ -26,7 +26,9 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "${ALLOWED_ORIGINS:http://localhost:3000}"
+            # Patterns (not exact origins) so public preview tunnels work too.
+            # Override via ALLOWED_ORIGIN_PATTERNS env (comma-separated) if needed.
+            allowedOriginPatterns: "${ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,https://*.trycloudflare.com}"
             allowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
             allowedHeaders: ["*"]
             allowCredentials: true

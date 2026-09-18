@@ -111,8 +111,17 @@ export default function LoginFormPage() {
       }
       setSweep(true); // encrypted-data transition
       setTimeout(() => navigate('/wallet'), 480);
-    } catch {
-      setError('Authentication failed. Verify your digital ID and password.');
+    } catch (err) {
+      // Honest failure reasons: wrong credentials vs backend/network outage —
+      // the interceptor computes a friendlyMessage for every error shape.
+      const status = err?.response?.status;
+      if (status === 401) {
+        setError('Authentication failed. Verify your digital ID and password.');
+      } else if (status === 403) {
+        setError('This identity cannot be authenticated — it may be revoked or suspended.');
+      } else {
+        setError(err?.friendlyMessage || 'The vault could not be reached. Please try again in a moment.');
+      }
       setBusy(false);
     } finally {
       clearTimeout(t1); clearTimeout(t2);
