@@ -38,6 +38,28 @@ const GLOBAL_CSS = `
 
 const Stages = ['ESTABLISHING SECURE CHANNEL', 'VERIFYING IDENTITY PROOF', 'GRANTING VAULT ACCESS'];
 
+// Remember-this-device: after one successful login with the box checked, the
+// vault keeps the real credentials in localStorage (device-local only — never
+// in the repo, never sent anywhere but the normal login request) and pre-fills
+// both slots on every visit: the actual DID and the actual password (rendered
+// masked). Unchecking + logging in forgets the device and slots start empty.
+const REMEMBER_KEY = 'cypherid.vault.rememberedCredentials';
+
+const loadRemembered = () => {
+  try {
+    const raw = window.localStorage.getItem(REMEMBER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.did === 'string' && typeof parsed.password === 'string'
+      && parsed.did && parsed.password) {
+      return parsed;
+    }
+  } catch {
+    /* corrupted or unavailable storage — start empty */
+  }
+  return null;
+};
+
 const VAULT_BTN = {
   position: 'relative', overflow: 'hidden', mt: 3.2, py: 1.5, borderRadius: 1,
   fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', color: '#051018',
@@ -49,9 +71,10 @@ const VAULT_BTN = {
 };
 
 export default function LoginFormPage() {
-  const [did, setDid] = useState('');
-  const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(false);
+  const [remembered] = useState(loadRemembered);
+  const [did, setDid] = useState(remembered ? remembered.did : '');
+  const [password, setPassword] = useState(remembered ? remembered.password : '');
+  const [remember, setRemember] = useState(Boolean(remembered));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState(0);
@@ -76,6 +99,16 @@ export default function LoginFormPage() {
     const t2 = setTimeout(() => setStage(2), 900);
     try {
       await login(did.trim(), password);
+      // Remember-this-device: store/clear locally after a successful login.
+      try {
+        if (remember) {
+          window.localStorage.setItem(REMEMBER_KEY, JSON.stringify({ did: did.trim(), password }));
+        } else {
+          window.localStorage.removeItem(REMEMBER_KEY);
+        }
+      } catch {
+        /* storage unavailable — continue with the normal login flow */
+      }
       setSweep(true); // encrypted-data transition
       setTimeout(() => navigate('/wallet'), 480);
     } catch {
