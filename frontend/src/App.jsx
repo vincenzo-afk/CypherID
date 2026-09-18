@@ -4,11 +4,13 @@ import CommandCenter from './components/CommandCenter.jsx';
 import AuthGuard from './components/AuthGuard.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import AdminLoginPage from './pages/AdminLoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import IdentityWalletPage from './pages/IdentityWalletPage.jsx';
 import AssetHubPage from './pages/AssetHubPage.jsx';
 import AccessRequestsPage from './pages/AccessRequestsPage.jsx';
 import AccessCenterPage from './pages/AccessCenterPage.jsx';
+import ActiveCenterPage from './pages/ActiveCenterPage.jsx';
 import AdminPanelPage from './pages/AdminPanelPage.jsx';
 import AuditDashboardPage from './pages/AuditDashboardPage.jsx';
 import NotificationsPage from './pages/NotificationsPage.jsx';
@@ -23,11 +25,13 @@ export default function App() {
       <Routes>
         {/* Vault login + identity genesis register render standalone — full-viewport cinematic layouts, no navbar */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/home" element={<CommandCenter><HomePage /></CommandCenter>} />
         <Route path="/wallet" element={<AuthGuard><CommandCenter><IdentityWalletPage /></CommandCenter></AuthGuard>} />
         <Route path="/assets" element={<AuthGuard><CommandCenter><AssetHubPage /></CommandCenter></AuthGuard>} />
         <Route path="/access-requests" element={<AuthGuard><CommandCenter><AccessCenterPage /></CommandCenter></AuthGuard>} />
+        <Route path="/active" element={<AuthGuard><CommandCenter><ActiveCenterPage /></CommandCenter></AuthGuard>} />
         <Route path="/admin" element={<AuthGuard roles={['ORG_ADMIN']}><AppLayout><AdminPanelPage /></AppLayout></AuthGuard>} />
         <Route path="/audit" element={<AuthGuard roles={['SYSTEM_AUDITOR', 'ORG_ADMIN']}><CommandCenter><AuditDashboardPage /></CommandCenter></AuthGuard>} />
         <Route path="/notifications" element={<AuthGuard><AppLayout><NotificationsPage /></AppLayout></AuthGuard>} />

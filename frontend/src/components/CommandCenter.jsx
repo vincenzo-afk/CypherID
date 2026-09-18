@@ -23,6 +23,7 @@ const NAV = [
   { label: 'Identity', to: '/wallet' },
   { label: 'Files', to: '/assets' },
   { label: 'Access', to: '/access-requests' },
+  { label: 'Active', to: '/active' },
   { label: 'Activity', to: '/audit' }
 ];
 
@@ -49,6 +50,9 @@ export default function CommandCenter({ children }) {
 
   const displayName = user?.name || user?.kycData?.name || (user?.did || '').slice(0, 14) + '…';
   const role = (user?.roles || []).find((r) => ROLE_LABELS[r]) || 'Member';
+  // Admin console entry — rendered ONLY for administrator roles. Normal users
+  // never see it, and /admin remains role-guarded front and back regardless.
+  const isAdmin = (user?.roles || []).some((r) => r === 'ORG_ADMIN' || r === 'SUPER_ADMIN');
 
   const onLogout = async () => {
     setAnchor(null);
@@ -112,6 +116,34 @@ export default function CommandCenter({ children }) {
               );
             })}
           </Box>
+
+          {/* admin console entry — admins only, never in the user menu */}
+          {isAdmin && (
+            <Box
+              component={Link}
+              to="/admin"
+              aria-current={pathname === '/admin' ? 'page' : undefined}
+              title="Administrator console"
+              sx={{
+                display: { xs: 'none', md: 'inline-flex' }, alignItems: 'center', gap: 0.8,
+                px: 1.6, py: 0.7, borderRadius: 1, textDecoration: 'none', fontSize: 13.5,
+                fontWeight: pathname === '/admin' ? 700 : 500,
+                color: pathname === '/admin' ? '#c4b5fd' : '#9d8cff',
+                border: '1px solid',
+                borderColor: pathname === '/admin' ? 'rgba(157,140,255,0.65)' : 'rgba(157,140,255,0.28)',
+                bgcolor: pathname === '/admin' ? 'rgba(157,140,255,0.12)' : 'transparent',
+                '&:hover': { color: '#ddd6fe', borderColor: 'rgba(157,140,255,0.55)', bgcolor: 'rgba(157,140,255,0.08)' }
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 2.5 4.5 5.4v5.3c0 4.6 3.2 8.4 7.5 10.8 4.3-2.4 7.5-6.2 7.5-10.8V5.4L12 2.5Z" />
+                <path d="M12 8.2v3.6" />
+                <circle cx="12" cy="14.6" r="0.55" fill="currentColor" stroke="none" />
+              </svg>
+              Admin
+            </Box>
+          )}
 
           {/* right: notifications + security status + avatar */}
           <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: { xs: 0.5, md: 1.6 } }}>
@@ -179,6 +211,11 @@ export default function CommandCenter({ children }) {
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
               slotProps={{ paper: { sx: { bgcolor: '#0b1120', border: '1px solid rgba(90,120,180,0.25)', mt: 1, minWidth: 180 } } }}
             >
+              {isAdmin && (
+                <MenuItem component={Link} to="/admin" onClick={() => setAnchor(null)} sx={{ color: '#b8a8ff' }}>
+                  Admin console
+                </MenuItem>
+              )}
               <MenuItem component={Link} to="/wallet" onClick={() => setAnchor(null)}>Profile</MenuItem>
               <MenuItem component={Link} to="/wallet" onClick={() => setAnchor(null)}>Security</MenuItem>
               <MenuItem component={Link} to="/notifications" onClick={() => setAnchor(null)}>Notifications</MenuItem>

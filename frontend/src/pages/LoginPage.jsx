@@ -321,6 +321,42 @@ export default function LoginFormPage() {
                 </Link>
               </Typography>
 
+              {/* Secondary administrator entry — navigation only; privileges are
+                  decided entirely by backend authentication/authorization. */}
+              <Box sx={{
+                mt: 2.6, pt: 2, borderTop: '1px solid rgba(90,120,180,0.14)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: 1.5, flexWrap: 'wrap'
+              }}>
+                <Typography sx={{ fontSize: 12.5, color: '#6f83a8' }}>
+                  Administrator?
+                </Typography>
+                <Button
+                  component={Link}
+                  to="/admin/login"
+                  size="small"
+                  startIcon={(
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M12 2.5 4.5 5.4v5.3c0 4.6 3.2 8.4 7.5 10.8 4.3-2.4 7.5-6.2 7.5-10.8V5.4L12 2.5Z" />
+                      <path d="M12 8.2v3.6" />
+                      <circle cx="12" cy="14.6" r="0.55" fill="currentColor" stroke="none" />
+                    </svg>
+                  )}
+                  sx={{
+                    py: 0.7, px: 1.6, borderRadius: 1, fontSize: 11, fontWeight: 700,
+                    letterSpacing: '0.12em', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    color: '#8fa3c8', border: '1px solid rgba(90,120,180,0.3)', bgcolor: 'transparent',
+                    '&:hover': {
+                      color: '#b9d4f5', borderColor: 'rgba(120,160,230,0.55)',
+                      bgcolor: 'rgba(40,90,160,0.07)'
+                    }
+                  }}
+                >
+                  ADMIN SIGN IN →
+                </Button>
+              </Box>
+
               <TelemetryBar />
             </Box>
           </Box>

@@ -176,6 +176,7 @@ export default function HomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const did = user?.did || '';
+  const isAdmin = (user?.roles || []).some((r) => r === 'ORG_ADMIN' || r === 'SUPER_ADMIN');
 
   // Real data — every section wired to its actual API
   const didQuery = useQuery({
@@ -279,13 +280,38 @@ export default function HomePage() {
       <Box sx={{ px: { xs: 2, sm: 3.5, md: 5 }, py: { xs: 2.5, md: 4 }, maxWidth: 1280, mx: 'auto', color: '#e8eefb' }}>
 
         {/* ── WELCOME ── */}
-        <Box className="cc-rise" sx={{ animation: 'ccRise .5s ease both' }}>
-          <Typography sx={{ fontSize: { xs: 24, md: 30 }, fontWeight: 800, letterSpacing: '-0.01em' }}>
-            {greet()}, {displayName}
-          </Typography>
-          <Typography sx={{ mt: 0.6, color: '#8b9cc0', fontSize: 14.5 }}>
-            Your digital identity is active and under your control.
-          </Typography>
+        <Box className="cc-rise" sx={{ animation: 'ccRise .5s ease both', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography sx={{ fontSize: { xs: 24, md: 30 }, fontWeight: 800, letterSpacing: '-0.01em' }}>
+              {greet()}, {displayName}
+            </Typography>
+            <Typography sx={{ mt: 0.6, color: '#8b9cc0', fontSize: 14.5 }}>
+              Your digital identity is active and under your control.
+            </Typography>
+          </Box>
+          {/* Administrator console entry — admins only. Authorization is still
+              enforced server-side; this button merely navigates. */}
+          {isAdmin && (
+            <Button
+              onClick={() => navigate('/admin')}
+              startIcon={(
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                  strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 2.5 4.5 5.4v5.3c0 4.6 3.2 8.4 7.5 10.8 4.3-2.4 7.5-6.2 7.5-10.8V5.4L12 2.5Z" />
+                  <path d="M12 8.2v3.6" />
+                  <circle cx="12" cy="14.6" r="0.55" fill="currentColor" stroke="none" />
+                </svg>
+              )}
+              sx={{
+                fontFamily: MONO, fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.14em',
+                color: '#c4b5fd', border: '1px solid rgba(157,140,255,0.32)', borderRadius: 1,
+                bgcolor: 'rgba(157,140,255,0.06)',
+                '&:hover': { bgcolor: 'rgba(157,140,255,0.13)', borderColor: 'rgba(157,140,255,0.6)' }
+              }}
+            >
+              ADMIN CONSOLE →
+            </Button>
+          )}
         </Box>
 
         {/* ── IDENTITY CORE + ID CARD + HEALTH ── */}
