@@ -4,10 +4,12 @@
 bcrypt with cost factor 12. Never stored or logged in plaintext.
 
 ## JWT Security
-- RS256 asymmetric signing (API Gateway can verify without secret)
-- Short TTL (15 minutes) minimises stolen token window
+- HS256 symmetric signing with shared `jwt.secret` (gateway and identity
+  service share the secret; RS256 is not implemented)
+- Access TTL 5 hours / refresh TTL 24 hours (see backend/16_AUTHENTICATION.md)
 - Refresh token rotation (new refresh token on each use)
-- Blacklist via Redis on logout and revocation
+- Access-token JTI blacklist via Redis on logout/revocation (gateway does not
+  consult the blacklist — limitation, see backend/16)
 
 ## DID Authentication
 DID-based challenge-response available as alternative to password:

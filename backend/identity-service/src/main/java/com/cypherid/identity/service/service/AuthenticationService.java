@@ -7,6 +7,7 @@ import com.cypherid.identity.service.repository.UserRepository;
 import com.cypherid.identity.service.security.JwtService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -62,44 +63,48 @@ public class AuthenticationService {
     public AuthResult authenticate(String did, String password, String nonce) {
         // Brute-force protection: reject while the DID is locked out
         // (docs/security/06_AUTHENTICATION_SECURITY.md).
-        requireNotLocked(did);
+        String normalizedDid = did == null ? "" : did.trim();
+        requireNotLocked(normalizedDid);
+        final String loginDid = normalizedDid;
 
-        User user = userRepository.findByDid(did)
+        User user = userRepository.findByDid(loginDid)
                 .orElseThrow(() -> {
-                    logger.warn("Login failed: DID not found: {}", did);
+                    logger.warn("Login failed: DID not found: {}", loginDid);
+                    recordFailedAttempt(loginDid);
                     return new AuthenticationException(HttpStatus.UNAUTHORIZED,
                             "INVALID_CREDENTIALS", "Invalid credentials");
                 });
 
         // Check DID status — docs/api/02_AUTHENTICATION_APIS.md: 403 suspended/revoked
         if ("REVOKED".equals(user.getStatus())) {
-            logger.warn("Login denied: DID REVOKED: {}", did);
+            logger.warn("Login denied: DID REVOKED: {}", loginDid);
             throw new AuthenticationException(HttpStatus.FORBIDDEN,
                     "DID_REVOKED", "DID is revoked");
         }
         if ("SUSPENDED".equals(user.getStatus())) {
-            logger.warn("Login denied: DID SUSPENDED: {}", did);
+            logger.warn("Login denied: DID SUSPENDED: {}", loginDid);
             throw new AuthenticationException(HttpStatus.FORBIDDEN,
                     "DID_SUSPENDED", "DID is suspended");
         }
 
         // Verify password
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            logger.warn("Login failed: wrong password for DID: {}", did);
+            logger.warn("Login failed: wrong password for DID: {}", loginDid);
+            recordFailedAttempt(loginDid);
             throw new AuthenticationException(HttpStatus.UNAUTHORIZED,
                     "INVALID_CREDENTIALS", "Invalid credentials");
         }
 
         // Successful login resets the failed-attempt counter
-        clearFailedAttempts(did);
+        clearFailedAttempts(loginDid);
 
         // Build roles list from clearance level
         List<String> roles = buildRoles(user);
 
-        String accessToken  = jwtService.issueAccessToken(did, user.getOrganization(), roles);
-        String refreshToken = jwtService.issueRefreshToken(did);
+        String accessToken  = jwtService.issueAccessToken(loginDid, user.getOrganization(), roles);
+        String refreshToken = jwtService.issueRefreshToken(loginDid);
 
-        logger.info("Login successful for DID: {} org: {}", did, user.getOrganization());
+        logger.info("Login successful for DID: {} org: {}", loginDid, user.getOrganization());
 
         return new AuthResult(
                 accessToken,
@@ -230,6 +235,5 @@ public class AuthenticationService {
             case "CONFIDENTIAL" -> List.of("CONFIDENTIAL", "UNCLASSIFIED", "CLEARANCE_LEVEL_2");
             default             -> List.of("UNCLASSIFIED", "CLEARANCE_LEVEL_1");
         };
-        return List.copyOf(base);
     }
 }

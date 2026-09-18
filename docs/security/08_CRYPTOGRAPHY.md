@@ -5,7 +5,7 @@
 | Use Case | Algorithm | Key Size | Notes |
 |:---|:---|:---|:---|
 | File encryption | AES-GCM | 256-bit | Authenticated encryption |
-| JWT signing (access) | RS256 | 2048-bit RSA | Asymmetric |
+| JWT signing (access) | HS256 | 256-bit HMAC | Symmetric shared `jwt.secret` (RS256 not implemented) |
 | JWT signing (session) | HS256 | 256-bit HMAC | Symmetric |
 | DID identity | Ed25519 | 256-bit | Signing |
 | Fabric transaction signing | ECDSA P-256 | 256-bit | Fabric standard |

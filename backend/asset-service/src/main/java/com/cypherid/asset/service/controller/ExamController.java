@@ -98,7 +98,13 @@ public class ExamController {
         if (sessionId.isBlank() || qi == null || answer == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "sessionId, questionIndex, answer required"));
         }
-        int questionIndex = ((Number) qi).intValue();
+        final int questionIndex;
+        try {
+            questionIndex = (qi instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(qi));
+        } catch (NumberFormatException e) {
+            // docs/api/13_EXAM_APIS.md: non-integer questionIndex is 400, never 500.
+            return ResponseEntity.badRequest().body(Map.of("error", "questionIndex must be an integer"));
+        }
         answers.computeIfAbsent(sessionId, k -> new ConcurrentHashMap<>())
                 .put(questionIndex, String.valueOf(answer));
         logger.info("Exam answer received: session={} q={}", sessionId, questionIndex);
@@ -127,7 +133,7 @@ public class ExamController {
                 "submitted", true,
                 "examId", examId,
                 "answeredCount", answered,
-                "txHash", "exam-submit-" + UUID.randomUUID()));
+                "receiptId", "exam-receipt-" + UUID.randomUUID()));
     }
 
     /**

@@ -48,6 +48,23 @@ public class GlobalExceptionHandler {
                 .body(new ApiError("INVALID_TOKEN", "Invalid or expired token", null));
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(
+            org.springframework.security.access.AccessDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiError("FORBIDDEN", e.getMessage(), null));
+    }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(
+            org.springframework.web.server.ResponseStatusException e) {
+        String code = e.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS
+                ? "RATE_LIMIT_EXCEEDED" : "ERROR";
+        return ResponseEntity.status(e.getStatusCode())
+                .body(new ApiError(code,
+                        e.getReason() != null ? e.getReason() : e.getMessage(), null));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException e) {
         Map<String, Object> details = new LinkedHashMap<>();

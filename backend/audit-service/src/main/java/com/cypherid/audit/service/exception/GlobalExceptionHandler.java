@@ -35,6 +35,13 @@ public class GlobalExceptionHandler {
                 .body(new ApiError("BAD_REQUEST", e.getMessage(), null));
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(
+            org.springframework.security.access.AccessDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiError("FORBIDDEN", e.getMessage(), null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneric(Exception e) {
         logger.error("Unhandled error: {}", e.getMessage(), e);
