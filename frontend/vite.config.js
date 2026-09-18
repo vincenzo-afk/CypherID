@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => {
       '/api': {
         target: env.VITE_API_URL || 'http://localhost:8080',
         changeOrigin: true
+      },
+      '/ws': {
+        target: (process.env.VITE_API_URL || 'http://localhost:8080').replace(/^http/, 'ws'),
+        ws: true,
+        changeOrigin: true
       }
     }
   },

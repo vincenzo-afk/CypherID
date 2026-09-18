@@ -17,11 +17,18 @@ Start an exam session (candidate must be pre-registered).
 ---
 
 ## GET /api/v1/exams/question
-Get current question (served via ProtectedContentService).
+Get a question pointer for an issued exam session. Caller is authenticated via
+gateway JWT (`X-User-DID`); `sessionId` binds the question to the session.
 
-**Headers:** `Authorization: Bearer {sessionToken}`
+**Query:** `?sessionId={id}&questionIndex={n}`
 
-**Response:** Redirects to `/api/v1/protected-content/chunk?chunk={questionIndex}`
+**Response 200:**
+```json
+{ "examId": "...", "sessionId": "...", "questionIndex": 5, "chunk": 5 }
+```
+
+Fetch the body via `GET /api/v1/protected-content/chunk?chunk={n}` with
+`Authorization: Bearer {sessionToken}`. 404 `SESSION_NOT_FOUND` for unknown sessions.
 
 ---
 
@@ -31,6 +38,7 @@ Submit answer for current question.
 **Request:**
 ```json
 {
+  "sessionId": "...",
   "questionIndex": 5,
   "answer": "B"
 }
@@ -38,14 +46,18 @@ Submit answer for current question.
 
 **Response 200:** `{ "received": true, "questionIndex": 5 }`
 
-Correct answer NOT returned. Evaluation is server-side after exam ends.
+Non-integer `questionIndex` is 400. Correct answer NOT returned.
+Evaluation is server-side after exam ends.
 
 ---
 
 ## POST /api/v1/exams/{examId}/session/end
-End exam session (or auto-expired by TTL).
+End exam session (or auto-expired by TTL). Closes the protected session.
 
-**Response 200:** `{ "submitted": true, "txHash": "..." }`
+**Response 200:** `{ "submitted": true, "examId": "...", "answeredCount": 5, "receiptId": "exam-receipt-..." }`
+
+`receiptId` is a local submission receipt — not a blockchain transaction hash.
+On-chain evidence is the access/session audit trail.
 
 ---
 

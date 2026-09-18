@@ -19,10 +19,13 @@ Server generates the keypair and derives the DID — clients never supply key ma
   "did": "did:cypherid:0x...",
   "didDocument": { ... },
   "txHash": "0x...",
-  "privateKey": "base64 one-time delivery",
-  "temporaryPassword": "one-time delivery"
+  "privateKey": "base64...",
+  "initialPassword": "..."
 }
 ```
+`privateKey` and `initialPassword` are one-time delivery: the backend stores
+only the password hash. The client must display them once and never persist
+them in plaintext.
 
 ---
 

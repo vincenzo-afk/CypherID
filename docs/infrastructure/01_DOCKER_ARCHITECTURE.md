@@ -24,9 +24,15 @@
 # Build Docker images
 docker compose build
 
-# Start all services
+# Start infrastructure + services (Fabric behind --profile fabric)
 docker compose up -d
+docker compose --profile fabric up -d   # only with Phase 2 crypto material
 ```
+
+## Frontend Serving (production)
+`frontend/nginx.conf` serves the SPA and proxies `/api/` + `/ws/` to
+`api-gateway:8080` (see `frontend/Dockerfile`). The dev server mirrors this
+via `vite.config.js` (`/api` + `/ws` proxy).
 
 ## Resource Requirements (Demo)
 - RAM: 16 GB minimum

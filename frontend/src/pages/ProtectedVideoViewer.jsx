@@ -46,10 +46,24 @@ export default function ProtectedVideoViewer() {
     if (!session) return;
     const stop = startCaptureMonitoring(async (event) => {
       try { await api.logSecurityEvent(session.sessionId, event); } catch { /* offline */ }
+      // Focus loss pauses playback; a tab-hide obscures (SUSPICIOUS) per policy.
+      if (event.eventType === 'WINDOW_BLUR') setPlaying(false);
       if (event.eventType === 'TAB_HIDDEN') setObscured(true);
     });
     return stop;
   }, [session]);
+
+  // Close the server-side session on unmount (no leaks).
+  useEffect(() => () => {
+    if (session?.sessionId) api.closeSession(session.sessionId).catch(() => {});
+  }, [session?.sessionId]);
+
+  useEffect(() => {
+    if (obscured) {
+      window.dispatchEvent(new CustomEvent('cypherid:toast',
+        { detail: 'Playback obscured — suspicious activity detected.' }));
+    }
+  }, [obscured]);
 
   useEffect(() => {
     if (!playing || !session || obscured) return;

@@ -1,17 +1,6 @@
 server:
   port: 8080
 
-management:
-  server:
-    port: ${MANAGEMENT_PORT:8090}
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: always
-
 spring:
   application:
     name: api-gateway
@@ -26,8 +15,11 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            # Patterns (not exact origins) so public preview tunnels work too.
-            # Override via ALLOWED_ORIGIN_PATTERNS env (comma-separated) if needed.
+            # Origin PATTERNS, not fixed origins: browsers always send Origin,
+            # and a fixed localhost-only list 403-blocks every browser request
+            # from any other host (tunnels, deployed domains) with an empty
+            # response before it reaches a service. Patterns keep credentials
+            # support and stay overridable via env for real deployments.
             allowedOriginPatterns: "${ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,https://*.trycloudflare.com}"
             allowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
             allowedHeaders: ["*"]
@@ -39,25 +31,7 @@ spring:
         - AddResponseHeader=X-Request-ID, ${spring.application.name}
 
       routes:
-        # /me echoes the verified JWT claims (X-User-DID/Org/Roles) and the
-        # downstream handler requires those headers, so this route MUST run
-        # JwtAuthFilter. It precedes auth-login (first match wins) — otherwise
-        # /me falls into the public route, arrives headerless, and 403s.
-        - id: auth-me
-          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
-          predicates:
-            - Path=/api/v1/auth/me
-            - Method=GET
-          filters:
-            - name: JwtAuthFilter
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 30
-                redis-rate-limiter.burstCapacity: 60
-                key-resolver: "#{@didKeyResolver}"
-
-        # Auth routes — no JWT required (login/refresh/logout carry their own
-        # credentials: password, refresh cookie, bearer token respectively)
+        # Auth routes — no JWT required
         - id: auth-login
           uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
           predicates:
@@ -67,24 +41,6 @@ spring:
               args:
                 redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
-                key-resolver: "#{@ipKeyResolver}"
-
-        # Public DID enrollment (self-service KYC registration, RegisterPage.jsx
-        # -> POST /api/v1/identity/did). No JWT required: a brand-new user has
-        # no token yet — that's the whole point of this endpoint. Must precede
-        # the generic identity-service route below (first match wins), or the
-        # JwtAuthFilter there swallows this path too and registration 401s for
-        # everyone, permanently, with no way to create a first account.
-        - id: identity-register
-          uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
-          predicates:
-            - Path=/api/v1/identity/did
-            - Method=POST
-          filters:
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 5
-                redis-rate-limiter.burstCapacity: 10
                 key-resolver: "#{@ipKeyResolver}"
 
         # Identity routes
@@ -129,12 +85,13 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 key-resolver: "#{@didKeyResolver}"
 
-        # Session-token content routes — NO JwtAuthFilter. /chunk and
-        # /session-info authenticate with Bearer {sessionToken} (issued at
-        # protected-session time after access evaluation), NOT the user JWT —
-        # the filter would 401 every viewer call. The asset service validates
-        # the session token itself. Must precede protected-content (first
-        # match wins). Rate-limited by IP since no DID is available.
+        # Protected content — session-token endpoints. The Bearer token here is
+        # the SHORT-LIVED PROTECTED SESSION JWT issued by asset-service
+        # (SessionTokenService — different secret + claims from the access JWT),
+        # so access-token validation MUST NOT run (docs/api/09_PROTECTED_CONTENT_APIS.md:
+        # "Authorization: Bearer {sessionToken}"). Downstream strictly parses the
+        # session token (signature, issuer, expiry, ownership, state machine).
+        # Must precede the generic protected-content route below (first match wins).
         - id: protected-content-session
           uri: http://${ASSET_SVC_HOST:asset-svc}:8083
           predicates:
@@ -146,7 +103,8 @@ spring:
                 redis-rate-limiter.burstCapacity: 120
                 key-resolver: "#{@ipKeyResolver}"
 
-        # Protected content routes (session events + close need the user JWT)
+        # Protected content — session events + manual close. These carry the
+        # normal access JWT; the gateway injects the trusted X-User-DID header.
         - id: protected-content
           uri: http://${ASSET_SVC_HOST:asset-svc}:8083
           predicates:
@@ -186,15 +144,11 @@ spring:
                 key-resolver: "#{@didKeyResolver}"
 
         # Identity admin routes (org registry + role assignment) — must
-        # precede the generic admin route below (first match wins). NOTE:
-        # Path= with multiple patterns must be a single comma-separated
-        # string with NO space after the comma — Spring's PathPatternParser
-        # requires every pattern to start with "/", and a leading space
-        # (from "X, Y") breaks that for the second pattern.
+        # precede the generic admin route below (first match wins).
         - id: identity-admin
           uri: http://${IDENTITY_SVC_HOST:identity-svc}:8081
           predicates:
-            - Path=/api/v1/admin/organizations/**,/api/v1/admin/users/**
+            - Path=/api/v1/admin/organizations/**, /api/v1/admin/users/**
           filters:
             - name: JwtAuthFilter
             - name: RequestRateLimiter
@@ -207,7 +161,7 @@ spring:
         - id: admin-service
           uri: http://${ASSET_SVC_HOST:asset-svc}:8083
           predicates:
-            - Path=/api/v1/admin/**,/api/v1/security/**
+            - Path=/api/v1/admin/**, /api/v1/security/**
           filters:
             - name: JwtAuthFilter
             - name: RequestRateLimiter
@@ -242,10 +196,13 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 key-resolver: "#{@didKeyResolver}"
 
-        - id: audit-websocket
+        # Audit live event stream (WebSocket; browsers pass ?access_token=)
+        - id: audit-ws
           uri: ws://${AUDIT_SVC_HOST:audit-svc}:8084
           predicates:
             - Path=/ws/audit
+          filters:
+            - name: JwtAuthFilter
 
         # Health check — no auth
         - id: health
@@ -254,16 +211,20 @@ spring:
             - Path=/api/v1/health/**
 
 # JWT Configuration
-# NOTE: only jwt.secret is actually used here — the gateway validates the
-# token's own embedded exp claim, it doesn't independently enforce a max
-# age. expiration-seconds/refresh-expiration-seconds below are kept only to
-# mirror identity-service's config for readability; the real values that
-# matter are set in identity-service/src/main/resources/application.yml
-# (JwtService is what actually issues tokens and sets their expiry).
 jwt:
   secret: ${JWT_SECRET:CypherID-SIH-2026-Super-Secret-Key-Must-Be-At-Least-256-Bits-Long!}
-  expiration-seconds: 18000       # 5 hours — must match identity-service
+  expiration-seconds: 900
   refresh-expiration-seconds: 86400
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
 
 logging:
   level:

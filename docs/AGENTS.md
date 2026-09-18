@@ -126,7 +126,6 @@ AGENTS.md
             ├── api/
             ├── data/
             ├── security/
-            ├── ai/
             ├── infrastructure/
             ├── testing/
             └── operations/

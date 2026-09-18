@@ -4,7 +4,8 @@
 Classified documents above a threshold classification level require multiple admin approvals before access is granted.
 
 ## Default Threshold
-- SECRET and above: 2-of-3 org admins must approve
+- SECRET and above: all listed org admins must approve (unanimous N-of-N over
+  `requiredApprovers`; the threshold is the approver-list size)
 
 ## Flow
 ```
@@ -21,6 +22,11 @@ Threshold reached → MultiSigRequest.status = APPROVED
     ↓
 Access Service issues protected session
 ```
+
+## Rules enforced on-chain
+- Approver must be in `requiredApprovers`
+- One approval per approver (repeats rejected — they must not advance the threshold)
+- Requests expire 24h after creation (`EXPIRED` + `MultiSigExpired` event)
 
 ## Timeout
 MultiSig requests expire after 24 hours if not approved.

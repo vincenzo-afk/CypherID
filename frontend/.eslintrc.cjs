@@ -1,4 +1,5 @@
 module.exports = {
+  root: true,
   plugins: ['react-hooks'],
   env: {
     browser: true,
@@ -10,6 +11,7 @@ module.exports = {
     sourceType: 'module',
     ecmaFeatures: { jsx: true }
   },
+  extends: ['eslint:recommended'],
   rules: {
     'no-undef': 'error',
     'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]

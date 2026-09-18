@@ -22,46 +22,32 @@ ok()    { PASS=$((PASS+1)); printf '  [PASS] %s\n' "$*"; }
 fail()  { FAIL=$((FAIL+1)); printf '  [FAIL] %s\n' "$*"; }
 skip()  { SKIP=$((SKIP+1)); printf '  [SKIP] %s\n' "$*"; }
 
-# call METHOD PATH [DATA] — prints body, sets HTTP_CODE. Reads AUTH_HEADER
-# from the environment for each call, so callers switch users by just
-# reassigning AUTH_HEADER before calling.
+# call METHOD PATH [DATA] — prints body, sets HTTP_CODE.
+# Uses $AUTH_HEADER ("Authorization: Bearer ...") when set.
 call() {
   local method="$1" path="$2" data="${3:-}"
   local auth="${AUTH_HEADER:-}"
-  if [ -n "$data" ]; then
-    RESP=$(curl -s -w '\n%{http_code}' -X "$method" "$BASE$path" \
-      -H 'Content-Type: application/json' ${auth:+-H "$auth"} -d "$data")
-  else
-    RESP=$(curl -s -w '\n%{http_code}' -X "$method" "$BASE$path" ${auth:+-H "$auth"})
-  fi
+  local args=(-s -w '\n%{http_code}' -X "$method" "$BASE$path")
+  if [ -n "$auth" ]; then args+=(-H "$auth"); fi
+  if [ -n "$data" ]; then args+=(-H 'Content-Type: application/json' -d "$data"); fi
+  RESP=$(curl "${args[@]}")
   HTTP_CODE=$(printf '%s' "$RESP" | tail -n 1)
   BODY=$(printf '%s' "$RESP" | head -n -1)
   printf '%s\n' "$BODY"
 }
 
-# extract_field JSON FIELD — dependency-free "did":"..." style extraction
-# (no jq assumed to be installed; matches the rest of this script's style).
-extract_field() {
-  printf '%s' "$1" | grep -o "\"$2\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -n1 | sed -E "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"([^\"]*)\"/\1/"
+# json_val JSON KEY — minimal JSON field extractor (no jq dependency)
+json_val() {
+  printf '%s' "$1" | grep -o "\"$2\":\"[^\"]*\"" | head -n 1 | cut -d'"' -f4
 }
 
-# login DID PASSWORD — logs in and echoes an "Authorization: Bearer ..."
-# header string on success, or nothing on failure.
+# login DID PASSWORD — prints access token or empty on failure
 login() {
-  local resp code nonce
-  nonce=$(date +%s%N)  # LoginRequest.nonce is @NotBlank (replay protection); demo doesn't reuse a token
-  resp=$(call POST /api/v1/auth/login "{\"did\":\"$1\",\"password\":\"$2\",\"nonce\":\"$nonce\"}")
-  code="$HTTP_CODE"
-  if [ "$code" = "200" ]; then
-    local token
-    token=$(extract_field "$resp" accessToken)
-    [ -n "$token" ] && printf 'Authorization: Bearer %s' "$token"
-  fi
+  local resp
+  resp=$(call POST /api/v1/auth/login \
+    "{\"did\":\"$1\",\"password\":\"$2\",\"nonce\":\"demo-$(date +%s)\"}")
+  json_val "$resp" accessToken
 }
-
-# Every registration in this script gets this password — see the
-# IdentityManagementService.TEMP_PASSWORD constant it maps to.
-REGISTRATION_TEMP_PASSWORD="CypherID@2026!"
 
 step "Minute 0 — system health (docs/api/17)"
 HEALTH=$(call GET /api/v1/health)
@@ -73,64 +59,67 @@ esac
 step "Minute 1 — identity: Arjun (DRDO) + Priya (BEL) DIDs (docs/api/03)"
 ARJUN=$(call POST /api/v1/identity/did \
   '{"organization":"DRDO","department":"R&D","kycData":{"name":"Arjun","employeeId":"DRDO-001"}}')
-ARJUN_DID=""
+ARJUN_DID=$(json_val "$ARJUN" did)
+ARJUN_PW=$(json_val "$ARJUN" initialPassword)
 case "$ARJUN" in
-  *did:cypherid:*) ARJUN_DID=$(extract_field "$ARJUN" did); ok "Arjun DID created: $ARJUN_DID" ;;
+  *did:cypherid:*) ok "Arjun DID created: $(printf '%s' "$ARJUN_DID" | head -c 120)" ;;
   *FABRIC_UNAVAILABLE*) skip "Fabric down — DID creation needs Phase 2 network" ;;
   *) fail "Arjun DID failed: $ARJUN" ;;
 esac
 
 PRIYA=$(call POST /api/v1/identity/did \
   '{"organization":"BEL","department":"Avionics","kycData":{"name":"Priya","employeeId":"BEL-042"}}')
-PRIYA_DID=""
+PRIYA_DID=$(json_val "$PRIYA" did)
+PRIYA_PW=$(json_val "$PRIYA" initialPassword)
 case "$PRIYA" in
-  *did:cypherid:*) PRIYA_DID=$(extract_field "$PRIYA" did); ok "Priya DID created: $PRIYA_DID" ;;
+  *did:cypherid:*) ok "Priya DID created" ;;
   *FABRIC_UNAVAILABLE*) skip "Fabric down — DID creation needs Phase 2 network" ;;
   *) fail "Priya DID failed: $PRIYA" ;;
 esac
 
-# Both accounts start on the same TEMP_PASSWORD set by
-# IdentityManagementService#createDID. Every downstream call in this script
-# needs a real Authorization header — the gateway's JwtAuthFilter rejects
-# anything else with 401, which used to be mistaken for a policy DENIED here.
-ARJUN_AUTH=""
-PRIYA_AUTH=""
-[ -n "$ARJUN_DID" ] && ARJUN_AUTH=$(login "$ARJUN_DID" "$REGISTRATION_TEMP_PASSWORD")
-[ -n "$PRIYA_DID" ] && PRIYA_AUTH=$(login "$PRIYA_DID" "$REGISTRATION_TEMP_PASSWORD")
-[ -n "$ARJUN_AUTH" ] && ok "Arjun logged in" || skip "Arjun login unavailable — skipping their steps"
-[ -n "$PRIYA_AUTH" ] && ok "Priya logged in" || skip "Priya login unavailable — skipping their steps"
+# Real login with the one-time initial passwords (no pre-seeded tokens).
+ARJUN_TOKEN=""; PRIYA_TOKEN=""
+if [ -n "${ARJUN_DID:-}" ] && [ -n "${ARJUN_PW:-}" ]; then
+  ARJUN_TOKEN=$(login "$ARJUN_DID" "$ARJUN_PW")
+  [ -n "$ARJUN_TOKEN" ] && ok "Arjun login: JWT issued" || fail "Arjun login failed"
+fi
+if [ -n "${PRIYA_DID:-}" ] && [ -n "${PRIYA_PW:-}" ]; then
+  PRIYA_TOKEN=$(login "$PRIYA_DID" "$PRIYA_PW")
+  [ -n "$PRIYA_TOKEN" ] && ok "Priya login: JWT issued" || fail "Priya login failed"
+fi
+if [ -z "$ARJUN_TOKEN" ] || [ -z "$PRIYA_TOKEN" ]; then
+  skip "auth unavailable — access/audit steps will be skipped"
+fi
 
 step "Minute 2 — access denial for Priya (docs/api/05)"
-AUTH_HEADER="$PRIYA_AUTH"
+AUTH_HEADER="Authorization: Bearer ${PRIYA_TOKEN:-missing}"
 DENY=$(call POST /api/v1/access/request \
   '{"resourceId":"DRDO-DESIGN-007","action":"READ","contextAttributes":{"department":"Avionics"}}')
 case "$DENY" in
   *DENIED*) ok "Priya DENIED as expected: $(printf '%s' "$DENY" | head -c 160)" ;;
   *FABRIC_UNAVAILABLE*) skip "Fabric down — on-chain evaluation unavailable" ;;
-  '') skip "Priya not logged in — skipping" ;;
   *) fail "denial step unexpected: $DENY" ;;
 esac
 
 step "Minute 3 — access grant + protected session (docs/api/05,10)"
-AUTH_HEADER="$ARJUN_AUTH"
+AUTH_HEADER="Authorization: Bearer ${ARJUN_TOKEN:-missing}"
 GRANT=$(call POST /api/v1/access/request \
   '{"resourceId":"DRDO-DESIGN-007","action":"READ","contextAttributes":{"department":"R&D"}}')
 case "$GRANT" in
   *GRANTED*) ok "Arjun GRANTED: $(printf '%s' "$GRANT" | head -c 160)" ;;
   *FABRIC_UNAVAILABLE*) skip "Fabric down — on-chain evaluation unavailable" ;;
-  '') skip "Arjun not logged in — skipping" ;;
   *) fail "grant step unexpected: $GRANT" ;;
 esac
 
-SESS=$(call POST /api/v1/assets/DRDO-DESIGN-007/protected-session)  # still using Arjun's AUTH_HEADER
+SESS=$(call POST /api/v1/assets/DRDO-DESIGN-007/protected-session)
 case "$SESS" in
   *sessionToken*) ok "protected session issued" ;;
   *FABRIC_UNAVAILABLE*|*ACCESS_DENIED*|*NOT_FOUND*) skip "protected session needs granted access + asset ($HTTP_CODE)" ;;
-  '') skip "Arjun not logged in — skipping" ;;
   *) fail "protected session unexpected: $SESS" ;;
 esac
 
 step "Minute 4 — audit trail + PDF report (docs/api/07)"
+AUTH_HEADER="Authorization: Bearer ${ARJUN_TOKEN:-missing}"
 TRAIL=$(call GET '/api/v1/audit/logs?size=5')
 case "$TRAIL" in
   *DENIED*|*GRANTED*|*content*|*events*) ok "audit trail queryable: denial → grant visible" ;;
@@ -138,7 +127,6 @@ case "$TRAIL" in
 esac
 
 # Rapid-fire denied requests to exercise rate limiting + security-event capture.
-AUTH_HEADER="$PRIYA_AUTH"
 for _ in 1 2 3; do
   call POST /api/v1/access/request \
     '{"resourceId":"DRDO-DESIGN-007","action":"READ","contextAttributes":{"department":"Avionics"}}' >/dev/null
@@ -146,12 +134,12 @@ done
 ok "burst of denied requests submitted (rate limiting + security events engaged)"
 
 END=$(date -u +%Y-%m-%dT%H:%M:%SZ); START="2026-01-01T00:00:00Z"
-if curl -sf -o /tmp/cypherid-audit-report.pdf \
-    ${ARJUN_AUTH:+-H "$ARJUN_AUTH"} \
+if [ -n "$ARJUN_TOKEN" ] && curl -sf -o /tmp/cypherid-audit-report.pdf \
+    -H "Authorization: Bearer $ARJUN_TOKEN" \
     "$BASE/api/v1/audit/report?startDate=$START&endDate=$END"; then
   ok "PDF audit report saved to /tmp/cypherid-audit-report.pdf"
 else
-  skip "PDF report unavailable (HTTP $?)"
+  skip "PDF report unavailable (auth or service down)"
 fi
 
 step "Minute 5 — fabric health (docs/api/17)"
