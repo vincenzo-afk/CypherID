@@ -1,17 +1,37 @@
 import { useState } from 'react';
-import { Box, Button, TextField, Typography } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
+
+const defaultExpiry = () => new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+
+const rowsOf = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.events)) return data.events;
+  return [];
+};
 
 export default function AccessRequestsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [resourceId, setResourceId] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
-  const [delegate, setDelegate] = useState({ toDID: '', resourceId: '', action: 'READ', expiresAt: '' });
+  const [delegate, setDelegate] = useState({ toDID: '', resourceId: '', action: 'READ', expiresAt: defaultExpiry() });
   const [delegateMsg, setDelegateMsg] = useState('');
   const [multisig, setMultisig] = useState({ resourceId: '', approvers: '', requestId: '', signature: '' });
   const [multisigMsg, setMultisigMsg] = useState('');
+
+  // Request history = own audit trail (real backend records, no local mocks).
+  const historyQuery = useQuery({
+    queryKey: ['access-history', user?.did],
+    queryFn: () => api.auditLogs({ did: user?.did, size: 20 }).catch(() => ({ events: [] })),
+    enabled: Boolean(user?.did)
+  });
+  const history = rowsOf(historyQuery.data);
 
   const evaluate = async () => {
     setError('');
@@ -40,6 +60,14 @@ export default function AccessRequestsPage() {
 
   const runDelegate = async () => {
     setDelegateMsg('');
+    if (!delegate.toDID.trim() || !delegate.resourceId.trim()) {
+      setDelegateMsg('Target DID and resource ID are required.');
+      return;
+    }
+    if (!delegate.expiresAt || Number.isNaN(new Date(delegate.expiresAt).getTime())) {
+      setDelegateMsg('Expiry must be a valid ISO-8601 timestamp (prefilled +24h).');
+      return;
+    }
     try {
       const res = await api.delegateAccess({
         toDID: delegate.toDID.trim(),
@@ -66,6 +94,18 @@ export default function AccessRequestsPage() {
       const res = await api.approveMultiSig(multisig.requestId.trim(), { signature: multisig.signature.trim() });
       setMultisigMsg(`Approval recorded. Status: ${res.status || 'recorded'}. Tx: ${res.txHash || res.txId || 'recorded'}.`);
     } catch (e) { setMultisigMsg(e?.response?.data?.message || 'Approval failed.'); }
+  };
+
+  const runRevokeDelegate = async () => {
+    setDelegateMsg('');
+    if (!delegate.toDID.trim() || !delegate.resourceId.trim()) {
+      setDelegateMsg('Target DID and resource ID are required to revoke.');
+      return;
+    }
+    try {
+      await api.revokeDelegate({ toDID: delegate.toDID.trim(), resourceId: delegate.resourceId.trim() });
+      setDelegateMsg('Delegation revoked.');
+    } catch (e) { setDelegateMsg(e?.response?.data?.message || 'Revocation failed.'); }
   };
 
   return (
@@ -111,6 +151,34 @@ export default function AccessRequestsPage() {
         <Button variant="outlined" onClick={runMultisigApprove}>Approve</Button>
       </Box>
       {multisigMsg && <Typography sx={{ mt: 1 }}>{multisigMsg}</Typography>}
+
+      <Typography variant="h6" sx={{ mt: 3 }}>My Recent Decisions (audit trail)</Typography>
+      {history.length === 0
+        ? <Typography variant="body2">No recorded requests yet.</Typography>
+        : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Time</TableCell>
+                <TableCell>Resource</TableCell>
+                <TableCell>Decision</TableCell>
+                <TableCell>Reason</TableCell>
+                <TableCell>Tx</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {history.map((h, i) => (
+                <TableRow key={h.id || i}>
+                  <TableCell>{h.eventTime || h.timestamp || ''}</TableCell>
+                  <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.resourceId || h.resource || ''}</TableCell>
+                  <TableCell>{h.decision || ''}</TableCell>
+                  <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.reason || ''}</TableCell>
+                  <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.txHash || h.txId || ''}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
     </Box>
   );
 }

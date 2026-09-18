@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { api } from '../services/api.js';
+import BlockchainTxBadge from '../components/BlockchainTxBadge.jsx';
 
 const rowsOf = (data) => {
   if (Array.isArray(data)) return data;
@@ -20,6 +21,30 @@ export default function AuditDashboardPage() {
   const [provenanceId, setProvenanceId] = useState('');
   const [provenance, setProvenance] = useState(null);
 
+  // Live event stream over the gateway-proxied audit WebSocket, with the
+  // 30s security-events polling below as fallback when WS is unreachable.
+  const [live, setLive] = useState([]);
+  const [wsState, setWsState] = useState('connecting');
+  useEffect(() => {
+    const token = localStorage.getItem('cypherid_access_token');
+    if (!token) { setWsState('polling'); return; }
+    const base = (import.meta.env.VITE_API_URL || window.location.origin).replace(/^http/, 'ws');
+    let ws;
+    try {
+      ws = new WebSocket(`${base}/ws/audit?access_token=${encodeURIComponent(token)}`);
+    } catch { setWsState('polling'); return; }
+    ws.onopen = () => setWsState('live');
+    ws.onmessage = (e) => {
+      try {
+        const evt = JSON.parse(e.data);
+        setLive((prev) => [evt, ...prev].slice(0, 50));
+      } catch { /* ignore malformed frames */ }
+    };
+    ws.onerror = () => setWsState('polling');
+    ws.onclose = () => setWsState((s) => (s === 'live' ? 'polling' : s));
+    return () => { try { ws.close(); } catch { /* noop */ } };
+  }, []);
+
   const { data, refetch, isFetching } = useQuery({
     queryKey: ['audit', applied],
     queryFn: () => api.auditLogs({ ...applied, size: 50 }).catch(() => ({ events: [] }))
@@ -29,9 +54,15 @@ export default function AuditDashboardPage() {
   const secQuery = useQuery({
     queryKey: ['audit-sec-events'],
     queryFn: () => api.securityEvents().catch(() => []),
-    refetchInterval: 30000
+    refetchInterval: wsState === 'live' ? false : 30000
   });
   const secEvents = rowsOf(secQuery.data);
+
+  const eventColor = (e) => {
+    if (e.decision === 'GRANTED' || e.severity === 'LOW') return 'success.main';
+    if (e.decision === 'DENIED' || e.severity === 'HIGH' || e.severity === 'CRITICAL') return 'error.main';
+    return 'warning.main';
+  };
 
   const download = async () => {
     try {
@@ -57,6 +88,18 @@ export default function AuditDashboardPage() {
   return (
     <Box>
       <Typography variant="h5" gutterBottom>Audit Dashboard</Typography>
+
+      <Typography variant="h6">
+        Live Event Stream {wsState === 'live' ? '(live)' : wsState === 'connecting' ? '(connecting…)' : '(polling fallback)'}
+      </Typography>
+      <Box sx={{ maxHeight: 200, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1, p: 1, mb: 2 }}>
+        {live.length === 0 && <Typography variant="body2">No live events yet — stream opens when the audit service emits.</Typography>}
+        {live.map((e, i) => (
+          <Typography key={i} variant="body2" color={eventColor(e)} sx={{ fontFamily: 'monospace' }}>
+            [{e.eventTime || e.timestamp || ''}] {e.eventType || e.type || ''} {e.did || ''} {e.resourceId || ''} {e.decision || e.severity || ''} {e.txHash || e.txId || ''}
+          </Typography>
+        ))}
+      </Box>
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
         <TextField size="small" label="DID" value={filters.did} onChange={(e) => setFilters({ ...filters, did: e.target.value })} />
         <TextField size="small" label="Resource" value={filters.resourceId} onChange={(e) => setFilters({ ...filters, resourceId: e.target.value })} />
@@ -88,7 +131,7 @@ export default function AuditDashboardPage() {
               <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.did || ''}</TableCell>
               <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.resourceId || r.resource || ''}</TableCell>
               <TableCell>{r.decision || ''}</TableCell>
-              <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.txHash || r.txId || ''}</TableCell>
+              <TableCell><BlockchainTxBadge txHash={r.txHash || r.txId} /></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -105,7 +148,9 @@ export default function AuditDashboardPage() {
                 <TableCell>Time</TableCell>
                 <TableCell>Event</TableCell>
                 <TableCell>Severity</TableCell>
+                <TableCell>DID</TableCell>
                 <TableCell>Session</TableCell>
+                <TableCell>Tx</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -114,7 +159,9 @@ export default function AuditDashboardPage() {
                   <TableCell>{s.timestamp || s.createdAt || ''}</TableCell>
                   <TableCell>{s.eventType || s.type || ''}</TableCell>
                   <TableCell>{s.severity || ''}</TableCell>
+                  <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.did || s.userDid || ''}</TableCell>
                   <TableCell sx={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.sessionId || ''}</TableCell>
+                  <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.txHash || s.txId || ''}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

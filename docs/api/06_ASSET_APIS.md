@@ -20,6 +20,13 @@ Upload and mint a new asset.
 
 ---
 
+## GET /api/v1/assets?ownerDID={did}
+List assets owned by a DID (live index — burned assets are excluded).
+
+**Response 200:** `[ { "assetId": "...", "classification": "...", "status": "ACTIVE", ... } ]`
+
+---
+
 ## GET /api/v1/assets/{assetId}
 Get asset metadata (not content).
 

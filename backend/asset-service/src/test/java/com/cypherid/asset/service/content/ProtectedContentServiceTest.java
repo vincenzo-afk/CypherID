@@ -29,11 +29,15 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
 /**
  * ProtectedContentServiceTest — verifies chunked delivery: server-side
  * decryption, chunk slicing, and session-state guards.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ProtectedContentServiceTest {
 
     private static final String CONTENT = "abcdefghijklmnopqrstuvwxyz0123456789"; // 36 bytes

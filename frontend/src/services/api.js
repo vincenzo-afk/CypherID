@@ -8,10 +8,41 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('cypherid_access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Session-token calls carry their own Authorization header — never overwrite.
+  if (!config.headers.Authorization) {
+    const token = localStorage.getItem('cypherid_access_token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
+
+// Silent refresh: on 401, try the httpOnly refresh cookie once, then redirect
+// to login with an explanatory flag. Never loops (guarded by _retried).
+apiClient.interceptors.response.use(
+  (r) => r,
+  async (error) => {
+    const config = error?.config;
+    const url = config?.url || '';
+    const isAuthCall = url.includes('/api/v1/auth/login') || url.includes('/api/v1/auth/refresh');
+    if (error?.response?.status === 401 && config && !config._retried && !isAuthCall) {
+      config._retried = true;
+      try {
+        const refresh = await axios.post(`${BASE}/api/v1/auth/refresh`, null, { timeout: 15000 });
+        const accessToken = refresh?.data?.accessToken;
+        if (accessToken) {
+          localStorage.setItem('cypherid_access_token', accessToken);
+          config.headers.Authorization = `Bearer ${accessToken}`;
+          return apiClient(config);
+        }
+      } catch { /* refresh failed — fall through to login redirect */ }
+      localStorage.removeItem('cypherid_access_token');
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.assign('/login?expired=1');
+      }
+    }
+    throw error;
+  }
+);
 
 // Paths follow docs/api/* (source of truth per docs/AGENTS.md).
 const newNonce = () => {
@@ -80,7 +111,15 @@ export const api = {
     apiClient.get('/api/v1/protected-content/chunk', {
       headers: { Authorization: `Bearer ${sessionToken}` },
       params: { chunk },
-      responseType: 'text'
+      // Backend serves application/octet-stream; decode losslessly to text.
+      responseType: 'arraybuffer',
+      transformResponse: [(data) => {
+        try {
+          return new TextDecoder('utf-8', { fatal: false }).decode(data);
+        } catch {
+          return typeof data === 'string' ? data : '';
+        }
+      }]
     }).then((r) => r.data),
   logSecurityEvent: (sessionId, event) =>
     apiClient.post(`/api/v1/protected-content/session/${sessionId}/event`, event).then((r) => r.data),

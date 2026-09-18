@@ -80,7 +80,26 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 key-resolver: "#{@didKeyResolver}"
 
-        # Protected content routes
+        # Protected content — session-token endpoints. The Bearer token here is
+        # the SHORT-LIVED PROTECTED SESSION JWT issued by asset-service
+        # (SessionTokenService — different secret + claims from the access JWT),
+        # so access-token validation MUST NOT run (docs/api/09_PROTECTED_CONTENT_APIS.md:
+        # "Authorization: Bearer {sessionToken}"). Downstream strictly parses the
+        # session token (signature, issuer, expiry, ownership, state machine).
+        # Must precede the generic protected-content route below (first match wins).
+        - id: protected-content-session
+          uri: http://${ASSET_SVC_HOST:asset-svc}:8083
+          predicates:
+            - Path=/api/v1/protected-content/chunk,/api/v1/protected-content/session-info
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 60
+                redis-rate-limiter.burstCapacity: 120
+                key-resolver: "#{@ipKeyResolver}"
+
+        # Protected content — session events + manual close. These carry the
+        # normal access JWT; the gateway injects the trusted X-User-DID header.
         - id: protected-content
           uri: http://${ASSET_SVC_HOST:asset-svc}:8083
           predicates:
@@ -171,6 +190,14 @@ spring:
                 redis-rate-limiter.replenishRate: 20
                 redis-rate-limiter.burstCapacity: 40
                 key-resolver: "#{@didKeyResolver}"
+
+        # Audit live event stream (WebSocket; browsers pass ?access_token=)
+        - id: audit-ws
+          uri: ws://${AUDIT_SVC_HOST:audit-svc}:8084
+          predicates:
+            - Path=/ws/audit
+          filters:
+            - name: JwtAuthFilter
 
         # Health check — no auth
         - id: health

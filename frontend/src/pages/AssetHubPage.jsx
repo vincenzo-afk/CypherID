@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import BlockchainTxBadge from '../components/BlockchainTxBadge.jsx';
 
 const CLASSIFICATIONS = ['UNCLASSIFIED', 'CONFIDENTIAL', 'SECRET', 'TOP_SECRET'];
 
@@ -126,7 +127,7 @@ export default function AssetHubPage() {
                   <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.assetId || a.id}</TableCell>
                   <TableCell><Chip label={a.classification || '—'} size="small" /></TableCell>
                   <TableCell>{a.status || ''}</TableCell>
-                  <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.txHash || a.txId || ''}</TableCell>
+                  <TableCell><BlockchainTxBadge txHash={a.txHash || a.txId} /></TableCell>
                   <TableCell>
                     <Button size="small" onClick={() => setSelected(a)}>Detail</Button>
                     <Button size="small" onClick={() => protect(a)}>View</Button>

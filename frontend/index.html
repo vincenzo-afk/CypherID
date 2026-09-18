@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Clickjacking + content-source guardrails (docs/ui-ux + docs/security/13).
+         Inline styles are required by MUI/Emotion; no inline scripts are used. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' ws: wss: https:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'" />
+    <meta name="referrer" content="no-referrer" />
     <title>CypherID — Your Identity. Your Control. Immutable Trust.</title>
   </head>
   <body>

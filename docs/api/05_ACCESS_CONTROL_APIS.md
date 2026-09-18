@@ -70,3 +70,49 @@ Delegate access to another user (within own permissions).
   "expiresAt": "ISO-8601"
 }
 ```
+
+**Semantics:** expiry must be future-dated (400 otherwise); the delegation is
+evaluated on-chain as a substitute for the RBAC role requirement
+(reason `DELEGATED_ACCESS`); ABAC constraints always still apply.
+
+---
+
+## PUT /api/v1/access/delegate/revoke
+Revoke a delegation.
+
+**Request:**
+```json
+{ "toDID": "did:cypherid:0x...", "resourceId": "DRDO-DOC-007" }
+```
+
+---
+
+## POST /api/v1/access/multisig
+Create a multi-signature approval request (classified resources).
+
+**Request:**
+```json
+{ "resourceId": "DRDO-DOC-007", "requiredApprovers": ["did:cypherid:0x...", "..."] }
+```
+
+Approval is unanimous over `requiredApprovers`; one approval per approver
+(repeats are rejected); requests expire 24h after creation.
+
+---
+
+## POST /api/v1/access/multisig/{requestId}/approve
+Record an approval.
+
+**Request:** `{ "signature": "..." }`
+
+---
+
+## GET /api/v1/access/logs/{logId}
+Read an immutable access-log entry.
+
+---
+
+## POST /api/v1/access/emergency-override
+Emergency override (SUPER_ADMIN only, fully audited, resource-specific).
+
+**Request:** `{ "resourceId": "DRDO-DOC-007", "reason": "..." }`

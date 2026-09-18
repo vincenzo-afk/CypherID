@@ -44,13 +44,20 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Co
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
 
-            // Extract Authorization header
+            // Extract the token. Browsers cannot set headers on a WebSocket
+            // handshake, so for WS routes (docs/backend/02_API_GATEWAY.md,
+            // audit-ws route) the token is accepted from the access_token
+            // query parameter. HTTP requests still require the Bearer header.
             String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            String token = null;
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+            } else if (request.getPath().value().startsWith("/ws/")) {
+                token = request.getQueryParams().getFirst("access_token");
+            }
+            if (token == null || token.isBlank()) {
                 return onUnauthorized(exchange, "Missing or invalid Authorization header");
             }
-
-            String token = authHeader.substring(7);
 
             try {
                 SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));

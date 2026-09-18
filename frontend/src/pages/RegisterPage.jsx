@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Box, Button, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, TextField, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api.js';
 
 // Enrollment follows backend CreateDIDRequest:
 // { organization, department, kycData: { name, employeeId } }.
 // The server generates keys via Fabric CA enrollment and derives the DID —
-// the client never invents key material or DID strings.
+// the client never invents key material or DID strings. The server returns a
+// one-time initial password + private key: shown once, never stored client-side.
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', employeeId: '', organization: '', department: '' });
   const [result, setResult] = useState(null);
@@ -39,7 +40,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <Box component="form" onSubmit={submit} sx={{ maxWidth: 480 }}>
+    <Box component="form" onSubmit={submit} sx={{ maxWidth: 520 }}>
       <Typography variant="h5" gutterBottom>Register (KYC Enrollment)</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Your DID is issued by the server after KYC and recorded on-chain.
@@ -57,6 +58,18 @@ export default function RegisterPage() {
           <Typography>Enrolled DID: <strong>{result.did}</strong></Typography>
           {(result.txHash || result.txId) && (
             <Typography variant="body2">On-chain tx: {result.txHash || result.txId}</Typography>
+          )}
+          {result.initialPassword && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              One-time initial password: <strong>{result.initialPassword}</strong>
+              <br />Save it now — it is never shown again. Change it after first login.
+            </Alert>
+          )}
+          {result.privateKey && (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              One-time private key (Base64): store securely, it is never stored server-side.
+              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{result.privateKey}</pre>
+            </Alert>
           )}
           <Typography variant="body2" sx={{ mt: 1 }}>
             <Link to="/login">Continue to login</Link>

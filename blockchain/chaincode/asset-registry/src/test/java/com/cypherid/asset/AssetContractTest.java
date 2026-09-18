@@ -255,7 +255,7 @@ class AssetContractTest {
     void getAssetHistory_empty() {
         QueryResultsIterator<KeyModification> iterator = mock(QueryResultsIterator.class);
         when(stub.getHistoryForKey("ASSET:" + ASSET_ID)).thenReturn(iterator);
-        when(iterator.hasNext()).thenReturn(false);
+        when(iterator.iterator()).thenReturn(List.<KeyModification>of().iterator());
 
         assertThat(contract.getAssetHistory(ctx, ASSET_ID)).isEqualTo("[]");
     }

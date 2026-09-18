@@ -82,6 +82,7 @@ export default function IdentityWalletPage() {
             <TableHead>
               <TableRow>
                 <TableCell>Type</TableCell>
+                <TableCell>Clearance</TableCell>
                 <TableCell>Issuer</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Expires</TableCell>
@@ -89,17 +90,23 @@ export default function IdentityWalletPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {vcs.map((vc, i) => (
-                <TableRow key={vc.vcId || vc.id || i}>
+              {vcs.map((vc, i) => {
+                const expired = vc.status === 'EXPIRED'
+                  || (vc.expiresAt && new Date(vc.expiresAt).getTime() < Date.now())
+                  || (vc.expirationDate && new Date(vc.expirationDate).getTime() < Date.now());
+                return (
+                <TableRow key={vc.vcId || vc.id || i} sx={expired ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>
                   <TableCell>{vc.type || vc.credentialType || ''}</TableCell>
+                  <TableCell>{vc.clearanceLevel || vc.attributes?.clearanceLevel || ''}</TableCell>
                   <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{vc.issuerDid || vc.issuer || ''}</TableCell>
                   <TableCell>
-                    <Chip label={vc.status || 'UNKNOWN'} color={statusColor(vc.status)} size="small" />
+                    <Chip label={expired ? 'EXPIRED' : vc.status || 'UNKNOWN'} color={expired ? 'default' : statusColor(vc.status)} size="small" />
                   </TableCell>
                   <TableCell>{vc.expiresAt || vc.expirationDate || ''}</TableCell>
                   <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{vc.txHash || vc.txId || ''}</TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         )}

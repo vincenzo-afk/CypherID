@@ -5,7 +5,7 @@ import { api } from '../services/api.js';
 
 export default function AdminPanelPage() {
   const [msg, setMsg] = useState('');
-  const [policy, setPolicy] = useState({ resourceId: '', requiredRole: 'CLEARANCE_LEVEL_1', action: 'READ' });
+  const [policy, setPolicy] = useState({ resourceId: '', requiredRole: 'CLEARANCE_LEVEL_1', action: 'READ', abac: '' });
   const [displayId, setDisplayId] = useState('');
   const [forensic, setForensic] = useState(null);
   const [org, setOrg] = useState({ name: '', mspId: '' });
@@ -33,12 +33,23 @@ export default function AdminPanelPage() {
       <Typography variant="h6">System Health</Typography>
       <pre style={{ maxHeight: 120, overflow: 'auto' }}>{JSON.stringify({ service: health.data, fabric: fabricHealth.data }, null, 2)}</pre>
 
-      <Typography variant="h6" sx={{ mt: 2 }}>Access Policies</Typography>
+      <Typography variant="h6" sx={{ mt: 2 }}>Access Policies (RBAC + ABAC)</Typography>
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
         <TextField size="small" label="Resource ID" value={policy.resourceId} onChange={(e) => setPolicy({ ...policy, resourceId: e.target.value })} />
         <TextField size="small" label="Required role" value={policy.requiredRole} onChange={(e) => setPolicy({ ...policy, requiredRole: e.target.value })} />
         <TextField size="small" label="Action" value={policy.action} onChange={(e) => setPolicy({ ...policy, action: e.target.value })} />
-        <Button variant="contained" onClick={() => run(() => api.createPolicy(policy), 'Policy created.')}>Create</Button>
+        <TextField size="small" label="ABAC (k=v, comma-separated)" value={policy.abac} onChange={(e) => setPolicy({ ...policy, abac: e.target.value })} sx={{ minWidth: 260 }} />
+        <Button variant="contained" onClick={() => run(() => api.createPolicy({
+          resourceId: policy.resourceId,
+          requiredRole: policy.requiredRole,
+          action: policy.action,
+          abacAttributes: Object.fromEntries(policy.abac.split(',')
+            .map((s) => s.trim()).filter(Boolean)
+            .map((pair) => {
+              const i = pair.indexOf('=');
+              return i > 0 ? [pair.slice(0, i).trim(), pair.slice(i + 1).trim()] : null;
+            }).filter(Boolean))
+        }), 'Policy created.')}>Create</Button>
       </Box>
       <pre style={{ maxHeight: 160, overflow: 'auto' }}>{JSON.stringify(policies.data, null, 2)}</pre>
 
