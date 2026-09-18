@@ -24,7 +24,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/home" element={<CommandCenter><HomePage /></CommandCenter>} />
-        <Route path="/wallet" element={<AuthGuard><AppLayout><IdentityWalletPage /></AppLayout></AuthGuard>} />
+        <Route path="/wallet" element={<AuthGuard><CommandCenter><IdentityWalletPage /></CommandCenter></AuthGuard>} />
         <Route path="/assets" element={<AuthGuard><AppLayout><AssetHubPage /></AppLayout></AuthGuard>} />
         <Route path="/access-requests" element={<AuthGuard><AppLayout><AccessRequestsPage /></AppLayout></AuthGuard>} />
         <Route path="/admin" element={<AuthGuard roles={['ORG_ADMIN']}><AppLayout><AdminPanelPage /></AppLayout></AuthGuard>} />
