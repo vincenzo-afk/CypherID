@@ -23,7 +23,7 @@ CCAAS="$ROOT/infrastructure/fabric/ccaas"
 
 CC="${1:-}"
 VERSION="1.0"
-SEQUENCE="1"
+SEQUENCE="${SEQUENCE:-1}"
 POLICY="AND('Org1MSP.peer','Org2MSP.peer','Org3MSP.peer')"
 
 case "$CC" in

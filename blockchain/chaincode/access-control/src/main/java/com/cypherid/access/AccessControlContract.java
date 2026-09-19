@@ -13,6 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Type;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,7 @@ public class AccessControlContract implements ContractInterface {
 
     private static final Logger logger = LoggerFactory.getLogger(AccessControlContract.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Type STRING_MAP_TYPE = new TypeToken<Map<String, String>>(){}.getType();
 
     // ─── State Key Prefixes ───────────────────────────────────────────────────
     private static final String KEY_POLICY     = "POLICY:";
@@ -123,6 +126,33 @@ public class AccessControlContract implements ContractInterface {
             final String timestamp) {
 
         ChaincodeStub stub = ctx.getStub();
+        String decision = evaluatePolicyRules(stub, did, resourceId, action,
+                contextAttributesJson, vcVerificationResult);
+
+        // A policy DENIAL is overridden only by an explicit, active, unexpired
+        // delegation to this DID for this exact resource+action — the on-chain
+        // record the Share flow (delegateAccess) writes. Every other denial
+        // (no policy, wrong role, ABAC mismatch, expired/revoked share) stays
+        // default-deny. Granted decisions pass through untouched.
+        if ("DENIED".equals(jsonField(decision, "decision"))
+                && findActiveDelegation(stub, did, resourceId, action)) {
+            return buildDecision("GRANTED", "DELEGATION_SATISFIED",
+                    jsonField(decision, "policyId"), resourceId, did, action);
+        }
+        return decision;
+    }
+
+    /**
+     * Pure RBAC/ABAC policy evaluation (no delegation logic). Kept separate so
+     * evaluateAccess can layer delegation on top of any denial.
+     */
+    private String evaluatePolicyRules(
+            final ChaincodeStub stub,
+            final String did,
+            final String resourceId,
+            final String action,
+            final String contextAttributesJson,
+            final String vcVerificationResult) {
 
         // Find policy for this resource + action
         AccessPolicy policy = findPolicyForResource(stub, resourceId, action);
@@ -165,9 +195,8 @@ public class AccessControlContract implements ContractInterface {
             }
         }
 
-        // ── Check delegation ──────────────────────────────────────────────────
-        // (delegation grants access if explicitly delegated even without role)
-        // Delegation check is supplementary — role check still required for security.
+        // (Delegation handling lives in evaluateAccess: a policy denial is
+        // overridden only by an explicit active delegation for this DID.)
 
         return buildDecision("GRANTED", "ALL_POLICIES_SATISFIED", policy.getPolicyId(), resourceId, did, action);
     }
@@ -474,6 +503,79 @@ public class AccessControlContract implements ContractInterface {
             throw new RuntimeException("Policy lookup failed: " + e.getMessage(), e);
         }
         return null;
+    }
+
+    /**
+     * True when an explicit, active, unexpired delegation exists on-chain for
+     * this recipient DID + resource (+ exact action when given). This is the
+     * record the Share flow (delegateAccess) writes — it authorizes access
+     * even when no RBAC/ABAC policy matches. Revoked delegations are deleted
+     * from state, and unparseable/past expiries fail closed.
+     */
+    private boolean findActiveDelegation(ChaincodeStub stub, String did, String resourceId, String action) {
+        if (did == null || did.isBlank() || resourceId == null || resourceId.isBlank()) {
+            return false;
+        }
+        try (QueryResultsIterator<KeyValue> iterator = stub.getStateByRange(KEY_DELEGATE, KEY_DELEGATE + "￿")) {
+            for (KeyValue kv : iterator) {
+                Map<String, String> rec = GSON.fromJson(kv.getStringValue(), STRING_MAP_TYPE);
+                if (rec == null || !did.equals(rec.get("toDid")) || !resourceId.equals(rec.get("resourceId"))) {
+                    continue;
+                }
+                if (!Boolean.parseBoolean(String.valueOf(rec.get("active")))) {
+                    continue;
+                }
+                if (action != null && !action.isBlank() && !actionSatisfied(rec.get("action"), action)) {
+                    continue;
+                }
+                if (!delegationNotExpired(rec.get("expiresAt"))) {
+                    continue;
+                }
+                return true;
+            }
+        } catch (Exception e) {
+            // Fail closed: a broken delegation scan must never widen access.
+            logger.warn("Delegation lookup failed: {}", e.getMessage());
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * Hierarchy of file permissions: WRITE implies READ (you cannot modify a
+     * file you cannot open), and DOWNLOAD implies READ. So a WRITE or DOWNLOAD
+     * delegation satisfies an OPEN (READ) request, while READ never implies a
+     * higher permission.
+     */
+    static boolean actionSatisfied(String grantedAction, String requestedAction) {
+        if (grantedAction == null || grantedAction.isBlank()) {
+            return false;
+        }
+        if (grantedAction.equals(requestedAction)) {
+            return true;
+        }
+        return "READ".equals(requestedAction)
+                && ("WRITE".equals(grantedAction) || "DOWNLOAD".equals(grantedAction));
+    }
+
+    private boolean delegationNotExpired(String expiresAt) {
+        if (expiresAt == null || expiresAt.isBlank()) {
+            return true; // record without expiry never times out
+        }
+        try {
+            return Instant.parse(expiresAt).isAfter(Instant.now());
+        } catch (DateTimeParseException e) {
+            return false; // unparseable expiry → treat as expired (fail closed)
+        }
+    }
+
+    private String jsonField(String json, String key) {
+        try {
+            Map<String, String> m = GSON.fromJson(json, STRING_MAP_TYPE);
+            return m != null ? m.get(key) : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String buildDecision(String decision, String reason, String policyId, String resourceId, String did, String action) {
